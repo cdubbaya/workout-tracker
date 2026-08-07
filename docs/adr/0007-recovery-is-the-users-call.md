@@ -19,5 +19,5 @@ Together those remove most of the reasons a rational user would overreach. They 
 ## Consequences
 
 - The medical disclaimer the vision doc requires at onboarding is now load-bearing rather than ceremonial, and it should say that the user manages their own recovery.
-- Free-form logging is the sharpest edge, since it sits outside even the Session Goal. The Daily Cap is the only thing watching it.
+- Free-form logging looked like the sharpest edge, since it sat outside the Session Goal. ADR-0011 closed it: prescribed and free-form work now share one daily rep-XP budget, so a second session earns nothing extra.
 - Revisit if the instrumentation shows users sustaining full-goal sessions for long unbroken runs, or if challenge participation correlates with dropoff that looks like injury rather than boredom. Autoregulation remains implementable later without disturbing anything else — it changes one number.

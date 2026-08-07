@@ -40,6 +40,14 @@ _Avoid_: range of motion, ROM, dip
 The elapsed time of a complete Rep cycle. A floor exists so that pulsing at the bottom cannot manufacture Counted Reps.
 _Avoid_: speed, cadence, pace
 
+**Rep Log**:
+The small derived record kept for each Rep — depth ratio, tempo, Variant, Full or Half, detector confidence. It is what persists after a session; the landmarks themselves never do.
+_Avoid_: pose data, landmark stream, session recording
+
+**Miscount Flag**:
+A user's assertion that the app's count was wrong. It changes nothing — not the count, not XP, not a challenge standing — and exists solely to feed the detector agreement rate, which is the product's health metric.
+_Avoid_: correction, override, dispute
+
 **Variant**:
 Which form a Rep was performed in — incline, knee, or standard. A property of each individual Rep, not of the session or the user, because a user is expected to change Variant mid-set as they fatigue. Variant sets a Rep's value and nothing else; it is not a progression the user climbs.
 _Avoid_: exercise, movement type, mode, level, ladder
@@ -55,24 +63,38 @@ What one Counted Rep is worth, determined by its Variant and whether it was Full
 _Avoid_: weight, multiplier
 
 **Max Test**:
-The onboarding capability test that calibrates a user's Session Goal. Deliberately Variant-agnostic — the user does as many as they can in whatever form they can, and the result is a baseline in XP rather than in reps.
+The onboarding capability test that calibrates a user's Session Goal. Variant-agnostic, and measured at the Fatigue Point rather than at failure.
 _Avoid_: benchmark, assessment, fitness test
+
+**Fatigue Point**:
+The moment in a set where a user's Full Reps begin turning into Half Reps. Depth degrades before motion stops, so this is visible several reps before failure — which is what lets the Max Test find a working number without anyone grinding to exhaustion.
+_Avoid_: failure, burnout, exhaustion
 
 **Session Goal**:
 The XP target for one session, derived from the user's own Max Test and escalating as they build endurance. Because it is calibrated per person, hitting it means the same thing for a beginner doing knee reps as for an athlete doing standard ones.
 _Avoid_: target, quota, daily goal
 
-**Session Cap**:
-The XP ceiling for a single session, equal to that user's Session Goal. Grinding past the goal earns nothing extra, which is what keeps volume from paying and what makes mixed-ability challenges fair.
-_Avoid_: limit, max
+**Daily Budget**:
+The rep XP a user can earn in a day, equal to their Session Goal and shared across every session — prescribed or Free-form. Spending it all means further reps pay nothing, which is what keeps volume from paying and what makes mixed-ability challenges fair.
+_Avoid_: session cap, limit, max
 
-**Daily Cap**:
-A ceiling on XP earned across all sessions in a day, free-form included. Never below the user's Session Goal. A safety backstop, not a game mechanic — push-ups load one joint and there is no variety here to spread it.
-_Avoid_: daily limit
+**Free-form Session**:
+A session the user starts outside the program's prescription. Scores from the same Daily Budget as a prescribed one, counts in history, and holds the Streak.
+_Avoid_: freestyle, ad-hoc, unstructured
 
 **Level**:
 The escalating XP threshold track a user advances along. Thresholds get progressively harder to clear; a seasoned athlete may clear several early.
 _Avoid_: ladder, tier, rank, rung
+
+## Social
+
+**Challenge**:
+A time-boxed contest among friends. Never global — the whole trust model rests on the participants knowing each other.
+_Avoid_: competition, contest, league
+
+**Challenge Point**:
+The unit challenges are scored in. Earning a full Daily Budget on a day is worth 100 of them, whatever that budget happens to be, so a challenge measures effort rather than capacity.
+_Avoid_: challenge XP, score
 
 ## Consistency
 
