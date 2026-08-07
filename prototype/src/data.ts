@@ -192,3 +192,24 @@ export const chat: ChatMessage[] = [
   },
   { from: 'Cory', initials: 'CW', text: 'that is deeply annoying and also fair', at: '1:23pm', you: true },
 ]
+
+// ---------------------------------------------------------------------------
+// In-session. Mid-set, 18 reps in. Budget context matches the home screen:
+// 450/day, 130 banked this morning, so 320 is earnable in this session.
+// ---------------------------------------------------------------------------
+
+export const live = {
+  dailyBudget: 450,
+  bankedEarlier: 130,
+  earnedThisSet: 175, // 17 standard full + 1 standard half
+  repsThisSet: 18,
+  fullThisSet: 17,
+  halfThisSet: 1,
+  setNumber: 2,
+  lastRep: 'standard-full' as RepKind,
+  currentVariant: 'Standard',
+  elapsed: '2:14',
+}
+
+export const liveTotal = live.bankedEarlier + live.earnedThisSet
+export const liveRemaining = live.dailyBudget - liveTotal

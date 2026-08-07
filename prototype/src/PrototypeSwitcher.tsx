@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
 
-export type ScreenKey = 'home' | 'summary' | 'challenge'
+export type ScreenKey = 'home' | 'session' | 'summary' | 'challenge'
 
 const SCREEN_LABEL: Record<ScreenKey, string> = {
   home: 'Home',
+  session: 'Session',
   summary: 'Summary',
   challenge: 'Challenge',
 }
