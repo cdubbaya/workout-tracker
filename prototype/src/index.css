@@ -1,0 +1,128 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-sans: 'Figtree', system-ui, sans-serif;
+
+  /* Ink is deep pine rather than black — keeps the neutrals out of grey-blue. */
+  --color-ink: #0c332e;
+  --color-ink-soft: #4a6b64;
+  --color-ink-faint: #93aaa4;
+  --color-paper: #f6faf8;
+  --color-line: #e2ece8;
+
+  /* Full Rep. The ding. */
+  --color-full: #16c088;
+  --color-full-deep: #0a8f65;
+  --color-full-wash: #dcf7ec;
+
+  /* Half Rep. Scores, but less. */
+  --color-half: #ffc145;
+  --color-half-wash: #fff3d6;
+
+  /* Social / challenges. */
+  --color-social: #3aa3e3;
+  --color-social-wash: #ddefFB;
+
+  /* Streak. */
+  --color-streak: #ff7a45;
+  --color-streak-wash: #ffe6db;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1000px 600px at 15% -10%, #e6f6ef 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 110%, #e2f0fb 0%, transparent 55%), #eef4f1;
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide scrollbars inside the phone frame so variants read as native screens. */
+.no-bar::-webkit-scrollbar {
+  display: none;
+}
+.no-bar {
+  scrollbar-width: none;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes rise {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes grow-block {
+  0% {
+    transform: scaleY(0);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(2deg);
+  }
+}
+
+.a-pop {
+  animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.a-rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.a-block {
+  transform-origin: bottom;
+  animation: grow-block 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.a-drift {
+  animation: drift 4.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
