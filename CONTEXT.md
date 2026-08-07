@@ -48,6 +48,14 @@ _Avoid_: pose data, landmark stream, session recording
 A user's assertion that the app's count was wrong. It changes nothing — not the count, not XP, not a challenge standing — and exists solely to feed the detector agreement rate, which is the product's health metric.
 _Avoid_: correction, override, dispute
 
+**Set**:
+An unbroken run of Reps. It begins when the user gets into the push-up position and ends when they leave it — a boundary the detector reads from pose rather than one the user declares, because the phone is out of reach.
+_Avoid_: round, block, bout
+
+**Session**:
+Everything between starting the camera and ending it, however many Sets that contains. The unit that Attendance, the Streak, and the summary attach to.
+_Avoid_: workout, training
+
 **Variant**:
 Which form a Rep was performed in — incline, knee, or standard. A property of each individual Rep, not of the session or the user, because a user is expected to change Variant mid-set as they fatigue. Variant sets a Rep's value and nothing else; it is not a progression the user climbs.
 _Avoid_: exercise, movement type, mode, level, ladder

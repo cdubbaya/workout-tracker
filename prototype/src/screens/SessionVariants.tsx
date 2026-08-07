@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { RepBlocks } from '../Frame'
 import { live, liveTotal, liveRemaining } from '../data'
 
 type Phase = 'framing' | 'counting' | 'resting'
 
-/* Prototype-only chrome so the whole flow is walkable. Not part of any design. */
+/* Prototype-only chrome so the whole flow is walkable. Not part of the design. */
 function PhaseBar({ phase, set }: { phase: Phase; set: (p: Phase) => void }) {
   return (
     <div className="absolute bottom-3 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded-full bg-black/55 p-1 backdrop-blur-md">
@@ -23,10 +23,10 @@ function PhaseBar({ phase, set }: { phase: Phase; set: (p: Phase) => void }) {
   )
 }
 
-/* A stylised head-on pose read, used wherever the camera is shown. */
-function PoseFigure({ tint = '#ffffff', dim = false }: { tint?: string; dim?: boolean }) {
+/** Stand-in for the camera feed: a head-on pose read with the Hand Plane drawn. */
+function PoseFigure({ tint = '#7fdcbb', dim = false }: { tint?: string; dim?: boolean }) {
   return (
-    <svg viewBox="0 0 240 200" className="w-full" style={{ opacity: dim ? 0.5 : 1 }}>
+    <svg viewBox="0 0 240 200" className="w-full" style={{ opacity: dim ? 0.55 : 1 }}>
       <g stroke={tint} strokeWidth="3.5" strokeLinecap="round" fill="none">
         <line x1="60" y1="150" x2="70" y2="96" />
         <line x1="180" y1="150" x2="170" y2="96" />
@@ -48,7 +48,6 @@ function PoseFigure({ tint = '#ffffff', dim = false }: { tint?: string; dim?: bo
       ].map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r="5.5" fill={tint} />
       ))}
-      {/* Hand Plane — the datum every depth measurement is taken against */}
       <line
         x1="34"
         y1="150"
@@ -63,17 +62,13 @@ function PoseFigure({ tint = '#ffffff', dim = false }: { tint?: string; dim?: bo
   )
 }
 
-function Framing({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
+function Framing() {
   return (
-    <div
-      className={`flex h-full flex-col ${
-        tone === 'dark' ? 'bg-ink' : 'bg-gradient-to-b from-ink to-[#123f39]'
-      }`}
-    >
+    <div className="flex h-full flex-col bg-gradient-to-b from-ink to-[#123f39]">
       <div className="px-7 pt-16 text-center">
         <p className="font-display text-[30px] leading-tight text-white">You're in frame</p>
         <p className="mt-2 font-sans text-[15px] font-medium text-white/60">
-          Stand the phone against a wall at floor level, then get into position.
+          Stand the phone upright in front of you, at floor level, three or four feet away.
         </p>
       </div>
 
@@ -91,24 +86,25 @@ function Framing({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
           Start counting
         </button>
         <p className="mt-3 text-center font-sans text-[13px] font-medium text-white/45">
-          Listen for the ding — you don't need to watch the screen
+          A ding means it counted. Rest whenever you like — just sit up.
         </p>
       </div>
     </div>
   )
 }
 
-function Resting({ children }: { children?: ReactNode }) {
+/** Between sets. Reached by leaving the push-up position; left by getting back into it. */
+function Resting() {
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-white to-full-wash">
       <div className="px-7 pt-14 text-center">
         <p className="font-sans text-[12px] font-bold tracking-[0.18em] text-ink-faint uppercase">
-          Set {live.setNumber} done · resting
+          Set {live.setNumber} · resting
         </p>
-        <p className="mt-3 font-display text-[76px] leading-none text-ink tnum">
+        <p className="a-pop mt-3 font-display text-[76px] leading-none text-ink tnum">
           {live.repsThisSet}
         </p>
-        <p className="font-display text-[20px] text-ink-faint">reps this set</p>
+        <p className="font-display text-[20px] text-ink-faint">reps that set</p>
       </div>
 
       <div className="mx-7 mt-7 rounded-[26px] bg-white p-5 shadow-[0_10px_28px_-16px_rgba(12,51,46,0.45)]">
@@ -126,154 +122,48 @@ function Resting({ children }: { children?: ReactNode }) {
         </p>
       </div>
 
-      {children}
+      {/* Resuming needs no input, so the screen instructs rather than offers a button. */}
+      <div className="mx-7 mt-4 flex items-center gap-3.5 rounded-[26px] bg-full-wash p-5">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-full text-[19px] text-white">
+          ↺
+        </span>
+        <p className="font-sans text-[14px] leading-snug font-semibold text-ink-soft">
+          Get back into position when you're ready. Counting picks up on your first rep — nothing to
+          press.
+        </p>
+      </div>
 
       <div className="mt-auto px-7 pb-24">
-        <button className="w-full rounded-[26px] bg-gradient-to-b from-full to-full-deep py-5 font-display text-[22px] text-white shadow-[0_7px_0_0_#07704f]">
-          Next set
-        </button>
-        <button className="mt-2.5 w-full py-2.5 font-sans text-[15px] font-bold text-ink-faint">
+        <button className="w-full rounded-[26px] border-2 border-line bg-white py-4.5 font-display text-[19px] text-ink-soft">
           End session
         </button>
+        <p className="mt-2.5 text-center font-sans text-[12.5px] font-medium text-ink-faint">
+          Ends on its own if you don't come back
+        </p>
       </div>
     </div>
   )
 }
 
-/* ========================================================================
-   A — Peripheral. One enormous numeral on a field that floods with colour as
-   the budget fills. No text, nothing to read, legible from four feet in the
-   corner of your eye.
-   ======================================================================== */
-
+/**
+ * Single surviving in-session design: a mirror.
+ *
+ * The camera stands in front of the user, so watching it is looking forward
+ * rather than the cervical rotation the vision doc objected to (ADR-0013). Sets
+ * and rest are driven entirely by pose (ADR-0014) — the only button that
+ * matters is End session, and reaching it means walking over.
+ */
 export function SessionA() {
   const [phase, setPhase] = useState<Phase>('counting')
-  const fill = (liveTotal / live.dailyBudget) * 100
 
   return (
     <div className="relative h-full">
       {phase === 'framing' && <Framing />}
-      {phase === 'resting' && <Resting />}
-      {phase === 'counting' && (
-        <div className="relative h-full overflow-hidden bg-ink">
-          {/* Budget floods upward */}
-          <div
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-full-deep to-full transition-all duration-700"
-            style={{ height: `${fill}%` }}
-          />
-          <div className="relative flex h-full flex-col items-center justify-center">
-            <p
-              key={live.repsThisSet}
-              className="a-pop font-display text-[210px] leading-[0.8] text-white tnum"
-            >
-              {live.repsThisSet}
-            </p>
-            <div className="mt-6 flex gap-2.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span
-                  key={i}
-                  className="h-3.5 w-3.5 rounded-full"
-                  style={{
-                    background: i === 4 ? 'var(--color-half)' : '#ffffff',
-                    opacity: i === 4 ? 1 : 0.9,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          <PhaseBar phase={phase} set={setPhase} />
-        </div>
-      )}
-      {phase !== 'counting' && <PhaseBar phase={phase} set={setPhase} />}
-    </div>
-  )
-}
-SessionA.variantName = 'Peripheral'
-
-/* ========================================================================
-   B — Live meter. The rep-block signature at full size: each rep lands as a
-   block, so the texture of the set builds in front of you.
-   ======================================================================== */
-
-export function SessionB() {
-  const [phase, setPhase] = useState<Phase>('counting')
-
-  return (
-    <div className="relative h-full">
-      {phase === 'framing' && <Framing />}
-      {phase === 'resting' && <Resting />}
-      {phase === 'counting' && (
-        <div className="flex h-full flex-col bg-ink px-6 pt-16 pb-24">
-          <div className="flex items-baseline justify-between">
-            <p className="font-display text-[96px] leading-none text-white tnum">
-              {live.repsThisSet}
-            </p>
-            <p className="font-display text-[30px] text-white/40 tnum">
-              {liveTotal}
-              <span className="text-[17px]">/{live.dailyBudget}</span>
-            </p>
-          </div>
-
-          {/* Blocks accumulate left to right, newest at the leading edge */}
-          <div className="mt-8 flex-1">
-            <div className="flex h-full items-end gap-[3px]">
-              {Array.from({ length: 45 }).map((_, i) => {
-                const landed = i < live.repsThisSet
-                const isHalf = i === 12
-                return (
-                  <div
-                    key={i}
-                    className={`flex-1 rounded-[3px] ${landed ? 'a-block' : ''}`}
-                    style={{
-                      height: !landed ? '14%' : isHalf ? '50%' : '100%',
-                      background: !landed
-                        ? 'rgba(255,255,255,0.09)'
-                        : isHalf
-                          ? 'var(--color-half)'
-                          : 'linear-gradient(180deg,#ffffff,#9df0d0)',
-                      animationDelay: `${Math.min(i * 25, 500)}ms`,
-                    }}
-                  />
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="mt-7 flex items-center justify-between">
-            <span className="rounded-full bg-white/10 px-3.5 py-2 font-sans text-[12.5px] font-bold text-white/70">
-              {live.currentVariant}
-            </span>
-            <span className="font-sans text-[12.5px] font-bold text-white/40 tnum">
-              {live.elapsed}
-            </span>
-          </div>
-          <PhaseBar phase={phase} set={setPhase} />
-        </div>
-      )}
-      {phase !== 'counting' && <PhaseBar phase={phase} set={setPhase} />}
-    </div>
-  )
-}
-SessionB.variantName = 'Live meter'
-
-/* ========================================================================
-   C — Mirror. Shows the camera and the pose read. The most reassuring and the
-   most dangerous: §4 argues an app that rewards screen-watching corrupts what
-   it measures, and this is the variant that rewards it.
-   ======================================================================== */
-
-export function SessionC() {
-  const [phase, setPhase] = useState<Phase>('counting')
-
-  return (
-    <div className="relative h-full">
-      {phase === 'framing' && <Framing tone="light" />}
       {phase === 'resting' && <Resting />}
       {phase === 'counting' && (
         <div className="relative h-full overflow-hidden bg-gradient-to-b from-[#0e3c36] to-ink">
-          {/* Stand-in for the camera feed */}
           <div className="absolute inset-0 grid place-items-center px-6">
-            <PoseFigure tint="#7fdcbb" dim />
+            <PoseFigure dim />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink via-ink/85 to-transparent" />
 
@@ -287,7 +177,7 @@ export function SessionC() {
           </div>
 
           <div className="absolute right-6 bottom-28 left-6">
-            <p className="font-display text-[128px] leading-[0.82] text-white tnum">
+            <p className="a-pop font-display text-[128px] leading-[0.82] text-white tnum">
               {live.repsThisSet}
             </p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/15">
@@ -308,4 +198,4 @@ export function SessionC() {
     </div>
   )
 }
-SessionC.variantName = 'Mirror'
+SessionA.variantName = 'Mirror'

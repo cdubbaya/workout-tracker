@@ -4,7 +4,7 @@ import { PrototypeSwitcher, type ScreenKey } from './PrototypeSwitcher'
 import { HomeA } from './screens/HomeVariants'
 import { SummaryA } from './screens/SummaryVariants'
 import { ChallengeA } from './screens/ChallengeVariants'
-import { SessionA, SessionB, SessionC } from './screens/SessionVariants'
+import { SessionA } from './screens/SessionVariants'
 
 type VariantComponent = (() => React.JSX.Element) & { variantName: string }
 
@@ -15,7 +15,7 @@ const SCREENS: Record<ScreenKey, { title: string; variants: Record<string, Varia
   },
   session: {
     title: 'In-session',
-    variants: { A: SessionA, B: SessionB, C: SessionC },
+    variants: { A: SessionA },
   },
   summary: {
     title: 'Post-set summary',

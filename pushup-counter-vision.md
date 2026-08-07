@@ -40,7 +40,9 @@ It is also the thing that keeps trying to break. It failed three separate times 
 
 ### Placement
 
-Phone at floor level, head-on, front-facing camera, user facing the lens.
+**Phone standing upright, in front of the user, at floor level, three or four feet away.** Front-facing camera, user facing the lens.
+
+Draft v1 was ambiguous here — it said "floor level, head-on, user facing the lens" in one place and "lying face-up on the floor" in another. A phone lying flat films the ceiling and cannot see a push-up head-on, so upright is the only arrangement that works. Leaned against a wall or a baseboard; no chair required, which is what preserves the zero-setup claim.
 
 Head-on beats a side view for one reason that outweighs the rest: **a side view grades one arm and assumes the other matches.** Uneven push is common, and head-on catches it.
 
@@ -76,7 +78,19 @@ Sustained capture plus inference on a phone lying face-up on the floor will thro
 3. **Interpolate threshold crossings between frames**, so tempo resolution isn't bounded by the frame interval. This buys back most of what step 2 costs.
 4. **Below the floor, warn and flag the session** as thermally degraded in the Rep Log, and keep counting. Never take a user's work away mid-effort.
 
-A session must also stop the camera after a prolonged absence of any detected pose. A user who walks off without ending the session would otherwise leave the camera running on a face-up phone, which is the thermal scenario in its worst form.
+A session must also stop the camera after a prolonged absence of any detected pose. A user who walks off without ending the session would otherwise leave the camera running indefinitely, which is the thermal scenario in its worst form.
+
+Re-tune the ladder against the real placement. A phone standing against a wall sheds heat far better than one lying flat on carpet, and Draft v1's thermal assumptions were written for the latter.
+
+### Session control
+
+The phone is three or four feet away, so **mid-session controls cannot be buttons** — reaching one means crawling over. Pose is the channel that is already open.
+
+- A **Set** ends when the user leaves the push-up position and the next begins when they get back into it. No input.
+- The **rest screen instructs rather than offers**: get back into position, counting resumes on your first rep.
+- The **session** ends with an explicit tap, because ending is the one moment the user wants the screen anyway — the claim screen is there and walking over is natural. Prolonged absence of any pose ends and banks it regardless.
+
+A whole multi-set session therefore runs at zero touches from "Start counting" to the walk over at the end.
 
 ---
 
@@ -115,7 +129,9 @@ Exact threshold values are tuning work, and Draft v1's "70% of the top gap" does
 | Half Rep — complete cycle, short of depth | Half | Lower ding |
 | Uncounted — too fast, or incomplete | Nothing | Silence |
 
-Feedback runs through sound, not the screen. Looking at a phone mid-push-up introduces cervical rotation and degrades the body line, so an app that rewards screen-watching corrupts what it measures.
+Audio is the primary channel and a user who never looks at the screen loses nothing.
+
+**But the screen is a mirror.** During a set it shows the camera feed with the pose read drawn over it — tracked joints, the Hand Plane — plus the count and the budget filling. Draft v1 argued for audio alone, on the grounds that looking at a phone mid-push-up causes cervical rotation. That objection assumed a phone beside or below the user; with the phone standing in front, looking at it is looking forward, which is mild neck extension rather than twist. What the mirror buys is the only direct evidence a user ever gets that the detector is working, and detector trust is the top risk in this document.
 
 Draft v1's buzzer is gone. It punished, which is wrong for a product whose audience includes people who cannot yet do one push-up, and it forced the detector to publish *why* a rep failed at the moment it was least confident. The absence of a ding is the feedback; the user's target is a ding on every rep. Why a rep fell short moves to the post-set summary, which is the only place the user should be looking at the screen anyway.
 
@@ -319,10 +335,12 @@ No read integration. The camera is the only sensor this product needs.
 
 ### v1, iOS first
 
-- Camera setup and framing check
+- Camera setup and framing check, for an upright phone in front of the user
 - ML Kit pose pipeline at 15fps with the thermal degradation ladder
 - Rep state machine: shoulder-width-scaled depth, Top, tempo, Variant classification
 - Audio: ding, lower ding, silence
+- In-session mirror: camera feed with pose read, count, live budget
+- Pose-driven set boundaries and rest state
 - Post-set summary with miscount flag
 - Max Test at the Fatigue Point, with re-test trigger
 - Program: escalating Session Goal, deload on stall
@@ -432,3 +450,5 @@ Recorded decisions live in [docs/adr/](./docs/adr/). This table maps them agains
 | ADR-0010 | Supabase direct; Vercel for web only | New |
 | ADR-0011 | One daily rep-XP budget | Refines ADR-0004 |
 | ADR-0012 | Challenges score in budget share | New |
+| ADR-0013 | The in-session screen is a mirror | Reverses v1 §4 |
+| ADR-0014 | Sets and rest are driven by pose, not touch | New |

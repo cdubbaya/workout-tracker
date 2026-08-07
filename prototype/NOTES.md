@@ -32,27 +32,20 @@ the standings rather than teasing.
 **Group chat is v1.1.** Kept in the prototype so the design exists when it's built, but out of the
 v1 roadmap — a thread needs a messages store, realtime, moderation, reporting, and a push category.
 
-## In-session — three variants, undecided
+## In-session — settled: Mirror
 
-The design problem: the screen is *very* visible (an upright phone at floor level sits in your lower
-field of view at the top of every rep) and §4 insists the design must not reward looking at it. So
-the target is high glanceability and low readability — legible in a peripheral 200ms glance, worth
-nothing to stare at.
+The camera feed with the pose read over it, plus the count and the budget filling. The vision doc
+argued for audio-only, on the grounds that screen-watching causes cervical rotation — but that
+assumed a phone beside or below the user. Standing in front, looking at it is looking forward.
+Peripheral and live-meter variants deleted. See ADR-0013.
 
-Each variant walks all three phases via the prototype-only pill bar at the bottom:
-**framing → counting → resting**. Framing and resting are shared; the variants disagree about
-counting, which is the only phase where the don't-look constraint applies.
+**The session runs at zero touches** (ADR-0014). Sets end when you leave the push-up position and
+resume when you get back into it; the rest screen instructs rather than offering a button, because
+the phone is four feet away and no mid-session button is reachable. Only ending the session needs a
+tap, and by then walking over is natural.
 
-| | Counting phase | The bet |
-|---|---|---|
-| A | **Peripheral** | One 210px numeral on a field that floods green as the budget fills. No text at all. Most disciplined reading of §4. |
-| B | **Live meter** | The rep-block signature at full size — each rep lands as a block, so the set's texture builds in front of you. Continues the design language. |
-| C | **Mirror** | Camera feed with the pose read and a large count. Most reassuring, and the variant §4 argues against — it rewards watching. |
-
-**Open question the doc can't answer:** §3 says "phone at floor level, head-on, user facing the lens"
-but the thermal note says "lying face-up on the floor." A flat phone films the ceiling. For head-on
-framing it must stand roughly upright at floor level, which changes the setup copy, the thermal
-model (carpet traps heat; a wall does not), and how visible the screen is.
+Placement is now resolved and was genuinely ambiguous in Draft v1: **upright, in front, at floor
+level, three to four feet away.** Flat on the floor films the ceiling.
 
 ## When to delete this
 
