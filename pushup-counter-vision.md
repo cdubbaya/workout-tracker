@@ -2,7 +2,7 @@
 
 **Status:** Draft v2
 **Date:** August 7, 2026
-**Source:** Design grilling against Draft v1, 12 recorded decisions in `docs/adr/`
+**Source:** Design grilling and UI prototyping against Draft v1, 14 recorded decisions in `docs/adr/`
 **Supersedes:** Draft v1 (August 5, 2026), most of whose decision log did not survive
 
 Vocabulary in this document is defined in [CONTEXT.md](./CONTEXT.md). Where this document and an ADR disagree, the ADR is current.
@@ -71,7 +71,7 @@ Apple Vision was reconsidered for the iOS-first release and rejected. Its 19 joi
 
 ### Thermal degradation
 
-Sustained capture plus inference on a phone lying face-up on the floor will throttle. Register a thermal state listener and shed load **in this order**, because the two costs are not equal:
+Sustained capture plus inference will throttle a phone. Register a thermal state listener and shed load **in this order**, because the two costs are not equal:
 
 1. **Downscale further.** Resolution costs landmark precision, which shoulder-width normalization tolerates well.
 2. **Then reduce frame rate, with a floor around 10fps.** Frame rate costs tempo resolution, which is what stands between the product and the pulsing exploit. A 0.6s rep is 9 frames at 15fps and 6 at 10fps; below that the state machine loses the cycle.
