@@ -14,7 +14,25 @@ Light, gradient-forward, rounded, game-register rather than fitness-register. Pa
 
 **Signature element:** the Daily Budget renders as discrete **rep-blocks** rather than a smooth bar — tall for Full Reps, short for Half Reps. Reps are discrete valued events (ADR-0003), so the meter is too, and the half-rep economics become visible: shallow reps fill less of your day.
 
-## The variants
+## Round 2 — after review
+
+**Summary: settled.** Celebration wins. The rep-by-rep chart moved *up* into the hero, where it
+replaces the medal row; the sheet is now purely a claim screen — Perfect Form indicator and the
+button, no rep data. Receipt and standalone time-strip variants deleted.
+
+**Challenge: settled.** Standings first. Race track deleted, chat-first deleted. The chat drawer
+now actually opens over the standings rather than being a preview strip.
+
+**Home: still open.** The Today's session card survived intact and is shared by all three variants.
+What's being decided is vibrance and how the streak reads:
+
+| | Streak treatment | The bet |
+|---|---|---|
+| A | **Week dots** | Seven days, today pulsing, on an orange gradient block. Immediate, low density. |
+| B | **Month grid** | A month of dots with a legend. Most information, most "look how far I've come". |
+| C | **Streak badge** | The number as an object you own, with a week of dots under it. Most game-like. |
+
+## Superseded — round 1 variants
 
 ### Home / pre-session
 

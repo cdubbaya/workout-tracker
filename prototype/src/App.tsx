@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Phone } from './Frame'
 import { PrototypeSwitcher, type ScreenKey } from './PrototypeSwitcher'
 import { HomeA, HomeB, HomeC } from './screens/HomeVariants'
-import { SummaryA, SummaryB, SummaryC } from './screens/SummaryVariants'
-import { ChallengeA, ChallengeB, ChallengeC } from './screens/ChallengeVariants'
+import { SummaryA } from './screens/SummaryVariants'
+import { ChallengeA } from './screens/ChallengeVariants'
 
 type VariantComponent = (() => React.JSX.Element) & { variantName: string }
 
@@ -14,11 +14,11 @@ const SCREENS: Record<ScreenKey, { title: string; variants: Record<string, Varia
   },
   summary: {
     title: 'Post-set summary',
-    variants: { A: SummaryA, B: SummaryB, C: SummaryC },
+    variants: { A: SummaryA },
   },
   challenge: {
     title: 'Challenge + group chat',
-    variants: { A: ChallengeA, B: ChallengeB, C: ChallengeC },
+    variants: { A: ChallengeA },
   },
 }
 
