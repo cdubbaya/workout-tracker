@@ -102,6 +102,10 @@ _Avoid_: challenge XP, score
 Consecutive days on which the user completed a session containing at least one Counted Rep. It measures showing up, not effort — a self-chosen light day holds it, and how hard any given day is remains the user's call.
 _Avoid_: chain, run
 
+**Week**:
+A seven-day slate that starts fresh every Monday, shown alongside the running Streak. It is a display and motivation device only — it gates nothing, breaks nothing, and pays nothing. Emphatically **not** the N-active-days-out-of-7 weekly streak that was retired in ADR-0005; that one could be lost, this one cannot.
+_Avoid_: weekly streak, week goal
+
 **Attendance**:
 The flat XP paid for completing a session with at least one Counted Rep, regardless of how far short of the Session Goal it fell. Recovery is a rewarded state here, not merely an unpunished one.
 _Avoid_: check-in, participation

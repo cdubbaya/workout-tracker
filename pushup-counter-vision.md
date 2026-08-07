@@ -236,6 +236,8 @@ What blunts the original objection is that **holding the streak costs one rep.**
 
 **Freezes** cover days with no session at all. Earned by streak length, consumed automatically and retroactively. They can be generous, because a frozen day earns no XP — a user who freezes constantly keeps a number and gains nothing.
 
+**Two layers, deliberately.** The running total only ends when the Streak breaks. Alongside it sits a **Week** — a seven-day slate that starts fresh every Monday. The week gates nothing, breaks nothing, and pays nothing; it exists so that a user who is 4 days into a 200-day run still has something short enough to finish this week. It is not the N-of-7 weekly streak retired in §8's own history, and the glossary keeps them apart deliberately.
+
 ---
 
 ## 9. Level
@@ -335,6 +337,7 @@ No read integration. The camera is the only sensor this product needs.
 
 ### v1.1
 
+- **Challenge group chat.** Designed during prototyping and deferred deliberately: a group thread carries a messages store, realtime delivery, moderation, reporting, and its own push category. v1 challenges ship with standings and no thread.
 - Android and Health Connect
 - Wall push-ups
 - Elevated camera placement option with hip-sag detection

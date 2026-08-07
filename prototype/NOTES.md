@@ -14,23 +14,34 @@ Light, gradient-forward, rounded, game-register rather than fitness-register. Pa
 
 **Signature element:** the Daily Budget renders as discrete **rep-blocks** rather than a smooth bar — tall for Full Reps, short for Half Reps. Reps are discrete valued events (ADR-0003), so the meter is too, and the half-rep economics become visible: shallow reps fill less of your day.
 
-## Round 2 — after review
+## Verdict — all three settled
 
-**Summary: settled.** Celebration wins. The rep-by-rep chart moved *up* into the hero, where it
-replaces the medal row; the sheet is now purely a claim screen — Perfect Form indicator and the
-button, no rep data. Receipt and standalone time-strip variants deleted.
+**Home — A, Week dots.** Two motivational layers on one card: the running Streak total up top,
+and a seven-day slate below the rule that starts fresh every Monday. The week gates nothing and
+pays nothing; it exists so someone 4 days into a 200-day run still has a short thing to finish.
+See the `Week` entry in `CONTEXT.md` — it is deliberately not the N-of-7 weekly streak that
+ADR-0005 retired. Budget-first, card-deck, path, month-grid and streak-badge variants deleted.
 
-**Challenge: settled.** Standings first. Race track deleted, chat-first deleted. The chat drawer
-now actually opens over the standings rather than being a preview strip.
+**Summary — Celebration.** The rep-by-rep chart moved up into the hero, replacing the medal row;
+the sheet below is purely a claim screen — Perfect Form indicator and the button, no rep data.
+Receipt and standalone time-strip variants deleted.
 
-**Home: still open.** The Today's session card survived intact and is shared by all three variants.
-What's being decided is vibrance and how the streak reads:
+**Challenge — Standings first.** Race track and chat-first deleted. The chat drawer opens over
+the standings rather than teasing.
 
-| | Streak treatment | The bet |
-|---|---|---|
-| A | **Week dots** | Seven days, today pulsing, on an orange gradient block. Immediate, low density. |
-| B | **Month grid** | A month of dots with a legend. Most information, most "look how far I've come". |
-| C | **Streak badge** | The number as an object you own, with a week of dots under it. Most game-like. |
+**Group chat is v1.1.** Kept in the prototype so the design exists when it's built, but out of the
+v1 roadmap — a thread needs a messages store, realtime, moderation, reporting, and a push category.
+
+## Still not prototyped
+
+The **in-session screen** — a screen for someone who is not supposed to look at it, face-up on the
+floor, three feet away. The strangest design problem in the product and it deserves its own pass.
+
+## When to delete this
+
+It has answered its question. It survives only as the visual reference for ticket-writing. Delete
+it once the real Expo app has these screens, and rewrite them properly — this code was written
+under prototype constraints.
 
 ## Superseded — round 1 variants
 
