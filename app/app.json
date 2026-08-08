@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Push-ups",
+    "slug": "pushup-counter",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f6faf8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cdubbaya.pushupcounter"
+    },
+    "android": {
+      "package": "com.cdubbaya.pushupcounter",
+      "adaptiveIcon": {
+        "backgroundColor": "#f6faf8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
