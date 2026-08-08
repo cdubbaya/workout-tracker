@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cdubbaya.pushupcounter"
+      "bundleIdentifier": "com.cdubbaya.pushupcounter",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.cdubbaya.pushupcounter",
@@ -28,6 +31,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4f98eb9b-2790-4f0a-b625-057c52efc602"
+      }
     }
   }
 }
