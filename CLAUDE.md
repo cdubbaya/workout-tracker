@@ -15,3 +15,8 @@ The five canonical roles use their default strings, unmapped. See `docs/agents/t
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Worktree isolation
+
+One working tree per agent. Never `git switch` in the main checkout. See
+`docs/agents/worktree-isolation.md`.
