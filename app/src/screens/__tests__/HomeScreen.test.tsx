@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { HOME_SLOTS, HomeScreen } from '../HomeScreen';
@@ -100,5 +100,56 @@ describe('Palette', () => {
 
       expect(isPurple ? `${name} (${hex})` : null).toBeNull();
     }
+  });
+});
+
+/**
+ * Issue #9: "Home shows the signed-in user's identity."
+ *
+ * Home takes the identity as a prop rather than reaching for a session itself,
+ * so what it renders is provable without a client, a network or a mock auth
+ * stack.
+ */
+describe('Identity', () => {
+  const ada = { userId: 'user-ada-1', email: 'ada@example.com' };
+
+  async function renderHomeWith(props: Parameters<typeof HomeScreen>[0]) {
+    return render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 59, left: 0, right: 0, bottom: 34 },
+        }}
+      >
+        <HomeScreen {...props} />
+      </SafeAreaProvider>,
+    );
+  }
+
+  it('shows who is signed in', async () => {
+    const { getByTestId } = await renderHomeWith({ identity: ada });
+
+    // The criterion is that the user's identity is on screen. Asserted against
+    // the identity's own email so the test cannot pass on a hardcoded string.
+    expect(getByTestId('home-identity')).toHaveTextContent(
+      new RegExp(escapeForRegExp(ada.email)),
+    );
+  });
+
+  it('keeps the empty state when nobody is signed in', async () => {
+    const { queryByTestId } = await renderHomeWith({ identity: null });
+
+    expect(queryByTestId('home-identity')).toBeNull();
+  });
+
+  it('offers a sign-out that reports the user asked to leave', async () => {
+    const onSignOut = jest.fn();
+    const { getByTestId } = await renderHomeWith({ identity: ada, onSignOut });
+
+    fireEvent.press(getByTestId('home-sign-out'));
+
+    // Handing the phone to someone else is a user story in spec #1; the screen
+    // reports the intent and the core decides what it clears.
+    expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 });

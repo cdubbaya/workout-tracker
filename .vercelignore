@@ -16,6 +16,7 @@
 app
 prototype
 docs
+supabase
 CLAUDE.md
 CONTEXT.md
 pushup-counter-vision.md

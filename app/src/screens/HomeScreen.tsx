@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { Identity } from '../core/events';
 import { colors, pageGradient, radius, shadow, spacing, type } from '../theme/tokens';
 
 /**
@@ -72,7 +73,13 @@ function Slot({ slot }: { slot: HomeSlot }) {
   );
 }
 
-export function HomeScreen() {
+export type HomeScreenProps = {
+  /** The signed-in user, or `null` before anyone has signed in. */
+  identity?: Identity | null;
+  onSignOut?: () => void;
+};
+
+export function HomeScreen({ identity = null, onSignOut }: HomeScreenProps = {}) {
   const insets = useSafeAreaInsets();
   const paired = HOME_SLOTS.filter((slot) => slot.row === 'pair');
   const stacked = HOME_SLOTS.filter((slot) => slot.row !== 'pair');
@@ -86,7 +93,26 @@ export function HomeScreen() {
         ]}
       >
         <Text style={styles.greeting}>Push-ups</Text>
-        <Text style={styles.subhead}>Nothing here yet — set up to get started.</Text>
+
+        {identity ? (
+          <View style={styles.identityRow}>
+            <Text testID="home-identity" style={styles.subhead}>
+              Signed in as {identity.email}
+            </Text>
+            {onSignOut ? (
+              <Pressable
+                testID="home-sign-out"
+                accessibilityRole="button"
+                onPress={onSignOut}
+                hitSlop={spacing.sm}
+              >
+                <Text style={styles.signOut}>Sign out</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <Text style={styles.subhead}>Nothing here yet — set up to get started.</Text>
+        )}
 
         {stacked.map((slot) => (
           <Slot key={slot.owner} slot={slot} />
@@ -117,6 +143,17 @@ const styles = StyleSheet.create({
   subhead: {
     ...type.bodySmall,
     color: colors.inkSoft,
+    marginBottom: spacing.xs,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  signOut: {
+    ...type.bodySmall,
+    color: colors.fullDeep,
     marginBottom: spacing.xs,
   },
   card: {
