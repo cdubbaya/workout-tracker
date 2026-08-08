@@ -44,7 +44,7 @@ npx expo run:ios --device
 ```
 
 Choose your connected iPhone when prompted. The first build needs a signing team — open
-`ios/pushupcounter.xcworkspace` in Xcode, select the target, and set **Signing & Capabilities
+`ios/Pushups.xcworkspace` in Xcode, select the target, and set **Signing & Capabilities
 → Team**. A free Apple ID works, with the caveat that the provisioning profile expires after
 seven days.
 
