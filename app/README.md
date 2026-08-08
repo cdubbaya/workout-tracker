@@ -48,6 +48,26 @@ Choose your connected iPhone when prompted. The first build needs a signing team
 → Team**. A free Apple ID works, with the caveat that the provisioning profile expires after
 seven days.
 
+### Without a cable
+
+`expo run:ios --device` needs the phone attached. To install over the air instead, build on
+EAS and scan the QR code it returns:
+
+```bash
+npm install -g eas-cli
+eas login
+eas build --profile development --platform ios
+```
+
+EAS registers the device through a browser flow, so no cable is involved at any point. It
+does need a paid Apple Developer account — device registration goes through the Developer
+Portal, which a free Apple ID cannot reach.
+
+Use the **`development`** profile. It sets `developmentClient`, which is what lets the build
+attach to Metro; a `preview` or `production` build cannot, and the frame processors in spec
+\#2 need a development client. The `preview` profile here is a simulator build, not a device
+one.
+
 ## Tests
 
 ```bash
