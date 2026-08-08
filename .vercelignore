@@ -1,0 +1,14 @@
+# The Vercel deploy serves the repo root so that `vercel.json` can live here and
+# no dashboard Root Directory setting is needed. Everything except the web
+# surface is therefore excluded explicitly — without this, the vision doc, the
+# domain glossary and the entire app and prototype source would be publicly
+# fetchable at their repo paths.
+#
+# Deny by default, then re-allow the surface. `app/src/__tests__/web-surface.test.ts`
+# fails if a new top-level entry appears that is neither ignored nor part of the
+# surface, so adding a directory to the repo cannot silently publish it.
+*
+
+!web/
+!web/**
+!vercel.json

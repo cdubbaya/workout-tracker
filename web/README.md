@@ -6,12 +6,13 @@ The public web surface: a marketing page and the privacy policy. Hosted on Verce
 ## What this is not
 
 **No application logic ships here.** No framework, no build step, no `package.json`, no
-JavaScript — two hand-written HTML files and a `vercel.json`. The `prototype/` directory at
-the repo root is a throwaway and is deliberately **not** promoted into this surface.
+JavaScript — two hand-written HTML files, and a `vercel.json` at the repo root. The
+`prototype/` directory is a throwaway and is deliberately **not** promoted into this
+surface.
 
 That constraint is enforced twice: `app/src/__tests__/web-surface.test.ts` fails if a script
-file or an inline handler appears here, and the `Content-Security-Policy` in `vercel.json`
-is `default-src 'none'` with no `script-src`, so a browser refuses to execute one even if it
+file or an inline handler appears here, and the `Content-Security-Policy` in the config is
+`default-src 'none'` with no `script-src`, so a browser refuses to execute one even if it
 shipped.
 
 Friend-invite landing pages (spec #6) are a later addition to this same surface.
@@ -20,10 +21,24 @@ Friend-invite landing pages (spec #6) are a later addition to this same surface.
 
 ```
 web/
-├── index.html     marketing
-├── privacy.html   the policy, served at /privacy
-└── vercel.json    headers, clean URLs, no build
+├── index.html     marketing, served at /
+└── privacy.html   the policy, served at /privacy
+
+../vercel.json     rewrites, headers, no build
+../.vercelignore   excludes everything that is not the surface
 ```
+
+The Vercel config sits at the **repo root**, not here. Vercel reads `vercel.json` from
+its Root Directory, and leaving that at the default `.` means the entire deploy is
+configured in committed code with no dashboard setting that can drift or be forgotten on a
+new project. `rewrites` map `/` and `/privacy` onto the files above.
+
+The cost of serving the repo root is that every path in the repo is a candidate URL, so
+`.vercelignore` denies everything (`*`) and re-allows only `web/` and `vercel.json`.
+Without it the vision doc, the glossary and the whole app and prototype source would be
+publicly fetchable at their repo paths. Two tests guard this: one asserts the deny rule is
+present, and one lists the top-level entries that must stay unpublished, so adding a
+directory to the repo fails the suite rather than silently publishing it.
 
 Design tokens are ported by hand from `app/src/theme/tokens.ts` into the `:root` block of
 each page, so the web surface and the app read as one product. They are copied rather than
@@ -34,22 +49,24 @@ move it here too.
 ## Deploying
 
 The Vercel project is `cdubbayas-projects/workout-tracker`, production URL
-`workout-tracker-ashen-theta.vercel.app`.
+`workout-tracker-ashen-theta.vercel.app`. GitHub integration is connected, so **merging to
+`main` deploys** and pull requests get preview deployments.
 
-**Root Directory must be set to `web/`** in the Vercel project settings. This is the setting
-that makes the deploy independent of the mobile app: with the default root of `.`, Vercel
-would detect the Expo app at `app/` and try to build it.
+**No Vercel dashboard settings are required.** Root Directory stays at its default `.`,
+and `vercel.json` does the rest: `buildCommand`, `installCommand` and `framework` are all
+`null`, so the Expo app at `app/` is never detected or built even though it sits inside the
+deployed root. That is what keeps this deploy independent of the mobile build — the test
+suite asserts all three stay null.
 
-With Git integration connected, every push to `main` deploys. To deploy by hand from a
-clean checkout:
+To deploy by hand from a clean checkout, run from the **repo root** rather than from here:
 
 ```bash
-cd web
 vercel deploy --prod
 ```
 
-There is nothing to install and nothing to build — `buildCommand` is `null` and the output
-directory is the directory itself.
+Preview deployments are protected by Vercel authentication, so an unauthenticated `curl`
+against a preview URL returns the Vercel login page with a `200` — check the page title,
+not the status code, when verifying one.
 
 ## The privacy claim
 
