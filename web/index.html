@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Push-ups — the counter that only counts what it can see</title>
+    <meta
+      name="description"
+      content="An app that watches your push-ups with the front camera, counts the reps it can verify, and gives nothing for the ones it can't. Video and pose landmarks never leave your device."
+    />
+    <link rel="canonical" href="https://workout-tracker-ashen-theta.vercel.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Push-ups" />
+    <meta
+      property="og:description"
+      content="Counts the reps it can verify. Video and pose landmarks never leave your device."
+    />
+    <meta property="og:url" content="https://workout-tracker-ashen-theta.vercel.app/" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Figtree:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /*
+       * Values are the app's design tokens, ported from app/src/theme/tokens.ts
+       * so the two surfaces read as one product. Colours are named for what they
+       * mean in the domain — `full` is the Full Rep green — not for their hue.
+       */
+      :root {
+        --ink: #0c332e;
+        --ink-soft: #4a6b64;
+        --ink-faint: #93aaa4;
+        --paper: #f6faf8;
+        --line: #e2ece8;
+        --white: #ffffff;
+
+        --full: #16c088;
+        --full-deep: #0a8f65;
+        --full-wash: #dcf7ec;
+        --half: #ffc145;
+        --half-wash: #fff3d6;
+        --social: #3aa3e3;
+        --social-wash: #ddeffb;
+        --streak: #ff7a45;
+        --streak-wash: #ffe6db;
+
+        --radius-md: 18px;
+        --radius-lg: 26px;
+        --radius-xl: 30px;
+
+        --display: 'Baloo 2', system-ui, sans-serif;
+        --sans: 'Figtree', system-ui, -apple-system, sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        font-weight: 600;
+        color: var(--ink);
+        background: var(--paper);
+        /* The prototype's radial body treatment, which the native app can only
+           approximate with a linear gradient. */
+        background-image:
+          radial-gradient(ellipse 80% 60% at 15% 0%, var(--full-wash), transparent 60%),
+          radial-gradient(ellipse 70% 50% at 90% 10%, var(--social-wash), transparent 60%);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.5;
+      }
+
+      .wrap {
+        max-width: 62rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+      header {
+        padding: 2rem 0 0;
+      }
+
+      .mark {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 1.3rem;
+        letter-spacing: -0.01em;
+      }
+
+      .hero {
+        padding: 4.5rem 0 3.5rem;
+        max-width: 40rem;
+      }
+
+      h1 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(2.6rem, 7vw, 4.2rem);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin: 0 0 1.25rem;
+      }
+
+      .lede {
+        font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+        color: var(--ink-soft);
+        margin: 0 0 2rem;
+      }
+
+      .claim {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.6rem 1.1rem;
+        font-size: 0.9rem;
+        box-shadow: 0 12px 24px -18px var(--ink);
+      }
+
+      .claim .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 999px;
+        background: var(--full);
+        flex: none;
+      }
+
+      .claim a {
+        color: var(--full-deep);
+      }
+
+      h2 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(1.6rem, 4vw, 2.1rem);
+        letter-spacing: -0.015em;
+        margin: 0 0 0.6rem;
+      }
+
+      section {
+        padding: 3rem 0;
+      }
+
+      .section-lede {
+        color: var(--ink-soft);
+        max-width: 34rem;
+        margin: 0 0 2rem;
+      }
+
+      .cards {
+        display: grid;
+        /* Four cards, so a 2x2 rather than the 3-plus-orphan that a narrower
+           minimum produces at desktop widths. Collapses to one column below
+           ~34rem of available track. */
+        grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+        gap: 1rem;
+      }
+
+      @media (min-width: 48rem) {
+        .cards {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .card {
+        background: var(--white);
+        border-radius: var(--radius-xl);
+        padding: 1.6rem;
+        box-shadow: 0 24px 48px -32px var(--ink);
+      }
+
+      .card h3 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 1.2rem;
+        margin: 0 0 0.5rem;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+
+      .label {
+        font-family: var(--sans);
+        font-weight: 700;
+        font-size: 0.7rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin: 0 0 0.75rem;
+      }
+
+      .swatch {
+        display: inline-block;
+        width: 2.25rem;
+        height: 0.4rem;
+        border-radius: 999px;
+        margin-bottom: 0.9rem;
+      }
+
+      .swatch-full {
+        background: var(--full);
+      }
+      .swatch-half {
+        background: var(--half);
+      }
+      .swatch-streak {
+        background: var(--streak);
+      }
+      .swatch-social {
+        background: var(--social);
+      }
+
+      .honest {
+        background: var(--white);
+        border-radius: var(--radius-xl);
+        padding: clamp(1.75rem, 4vw, 2.5rem);
+        box-shadow: 0 24px 48px -32px var(--ink);
+      }
+
+      .honest ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--ink-soft);
+      }
+
+      .honest li + li {
+        margin-top: 0.5rem;
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 2rem;
+        padding: 2rem 0 3rem;
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        align-items: baseline;
+      }
+
+      footer a {
+        color: var(--full-deep);
+      }
+
+      footer .spacer {
+        margin-left: auto;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        html {
+          scroll-behavior: smooth;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header><span class="mark">Push-ups</span></header>
+
+      <div class="hero">
+        <h1>The counter that only counts what it can see.</h1>
+        <p class="lede">
+          Put the phone on the floor in front of you. The front camera watches your form,
+          scores the reps it can verify, and stays quiet for the ones it can&rsquo;t. No
+          wearable, no manual tally, no arguing with a number you didn&rsquo;t earn.
+        </p>
+        <span class="claim">
+          <span class="dot"></span>
+          <span
+            >Video and pose landmarks never leave your device.
+            <a href="/privacy">Read the policy</a></span
+          >
+        </span>
+      </div>
+
+      <section>
+        <h2>How it works</h2>
+        <p class="section-lede">
+          Pose estimation runs on the phone at 15 frames a second. Nothing is uploaded and
+          nothing is recorded.
+        </p>
+
+        <div class="cards">
+          <div class="card">
+            <span class="swatch swatch-full"></span>
+            <h3>It hears a rep, you hear a ding</h3>
+            <p>
+              Reach the depth threshold and it counts. Come up short and it still counts, at
+              a discount &mdash; a half rep is honest work, not a failure.
+            </p>
+          </div>
+          <div class="card">
+            <span class="swatch swatch-half"></span>
+            <h3>Measured against you</h3>
+            <p>
+              Depth is scaled to your own shoulder width, so the threshold means the same
+              thing on an incline, on your knees, or flat on the floor.
+            </p>
+          </div>
+          <div class="card">
+            <span class="swatch swatch-streak"></span>
+            <h3>Showing up is the metric</h3>
+            <p>
+              A single counted rep holds your streak. A light day is a choice the app
+              respects rather than a lapse it punishes.
+            </p>
+          </div>
+          <div class="card">
+            <span class="swatch swatch-social"></span>
+            <h3>Friends, never a leaderboard</h3>
+            <p>
+              Challenges are scored in share of your own daily budget, so a beginner and an
+              athlete compete on effort instead of capacity.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="honest">
+          <p class="label">What it doesn&rsquo;t do</p>
+          <h2>It&rsquo;s a rep verifier, not a form coach.</h2>
+          <p class="section-lede">
+            Worth saying plainly, because the opposite claim is the easy one to make and it
+            falls apart the first time someone sags through fifty reps and scores perfectly.
+          </p>
+          <ul>
+            <li>It checks depth and tempo. It does not judge whether your hips are level.</li>
+            <li>It counts push-ups. One exercise, done properly, rather than a library.</li>
+            <li>There is no global leaderboard, and there is not going to be one.</li>
+          </ul>
+        </div>
+      </section>
+
+      <footer>
+        <span>Push-ups</span>
+        <a href="/privacy">Privacy</a>
+        <span class="spacer">iOS first. Coming to the App Store.</span>
+      </footer>
+    </div>
+  </body>
+</html>
