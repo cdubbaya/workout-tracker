@@ -1,0 +1,21 @@
+# The Vercel deploy serves the repo root so that `vercel.json` can live here and
+# no dashboard Root Directory setting is needed. Everything except the web
+# surface is therefore excluded — without this, the vision doc, the domain
+# glossary and the entire app and prototype source would be publicly fetchable
+# at their repo paths.
+#
+# This is a denylist rather than a deny-all-then-re-allow. `*` followed by
+# `!web/**` looks tidier and does not work: the exclusion is applied before the
+# `rewrites` in vercel.json resolve, so `/` and `/privacy` rewrite onto files
+# that were never uploaded and both 404. Verified against `vercel dev`.
+#
+# `app/src/__tests__/web-surface.test.ts` pins this list against the repo's
+# top-level entries, so adding a directory fails the suite rather than silently
+# publishing it.
+
+app
+prototype
+docs
+CLAUDE.md
+CONTEXT.md
+pushup-counter-vision.md

@@ -20,7 +20,8 @@ import { join } from 'node:path';
  * into the repo root is the one coupling; the deploy itself stays independent.
  */
 
-const WEB = join(__dirname, '..', '..', '..', 'web');
+const REPO_ROOT = join(__dirname, '..', '..', '..');
+const WEB = join(REPO_ROOT, 'web');
 const PRIVACY = join(WEB, 'privacy.html');
 const MARKETING = join(WEB, 'index.html');
 
@@ -179,8 +180,82 @@ describe('The web surface', () => {
    * build."
    */
   describe('deploy independence', () => {
-    it('carries its own Vercel config', () => {
-      expect(existsSync(join(WEB, 'vercel.json'))).toBe(true);
+    /**
+     * The config sits at the repo root, not in `web/`. Vercel reads
+     * `vercel.json` from its Root Directory, which is `.` here, and rewrites
+     * `/` and `/privacy` onto the files under `web/`. Keeping the project's
+     * Root Directory at its default is what lets the whole deploy be
+     * configured in committed code with no dashboard settings to drift.
+     */
+    const config = () => JSON.parse(readFileSync(join(REPO_ROOT, 'vercel.json'), 'utf8'));
+
+    it('carries a Vercel config at the repo root', () => {
+      expect(existsSync(join(REPO_ROOT, 'vercel.json'))).toBe(true);
+    });
+
+    it('builds and installs nothing', () => {
+      // The Expo app lives in the same root. Any build or install step here
+      // would be the mobile app's, which is exactly the coupling this
+      // criterion forbids.
+      expect(config().buildCommand).toBeNull();
+      expect(config().installCommand).toBeNull();
+      expect(config().framework).toBeNull();
+    });
+
+    it('serves the two pages at their public paths', () => {
+      const rewrites: { source: string; destination: string }[] = config().rewrites ?? [];
+      const routes = Object.fromEntries(rewrites.map((r) => [r.source, r.destination]));
+
+      // `/privacy` is the path the App Store listing points at, so the mapping
+      // is part of the contract rather than an implementation detail.
+      expect(routes['/']).toBe('/web/index.html');
+      expect(routes['/privacy']).toBe('/web/privacy.html');
+    });
+
+    /**
+     * Serving the repo root is what removes the dashboard setting, and it is
+     * also the one way this arrangement can leak: every path in the repo is a
+     * candidate URL until `.vercelignore` excludes it. The vision doc, the
+     * glossary and the whole app and prototype source sit at that root.
+     *
+     * It has to be a denylist, not deny-all-then-re-allow. `*` with `!web/**`
+     * excludes the pages before the rewrites resolve, so `/` and `/privacy`
+     * both 404 — confirmed against `vercel dev`, which is why this asserts the
+     * entries rather than the tidier-looking form.
+     */
+    it('excludes every non-surface top-level entry from the deploy', () => {
+      const ignored = new Set(
+        readFileSync(join(REPO_ROOT, '.vercelignore'), 'utf8')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith('#')),
+      );
+
+      // The surface itself, plus files that are never uploaded anyway.
+      // `.vercel` is local link state that `vercel dev` writes and gitignores;
+      // Vercel excludes it from deployments itself.
+      const published = new Set(['web', 'vercel.json']);
+      const infrastructure = new Set(['.git', '.gitignore', '.vercelignore', '.vercel']);
+
+      const unprotected = readdirSync(REPO_ROOT).filter(
+        (entry) => !published.has(entry) && !infrastructure.has(entry) && !ignored.has(entry),
+      );
+
+      // The tripwire: a new top-level file or directory fails here, forcing a
+      // decision about whether it should be public rather than letting the
+      // deploy answer silently.
+      expect(unprotected).toEqual([]);
+    });
+
+    it('does not ignore the surface it is meant to serve', () => {
+      const ignored = readFileSync(join(REPO_ROOT, '.vercelignore'), 'utf8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'));
+
+      // Guards the regression this file was written to fix: ignoring `web/`
+      // leaves the rewrites pointing at files that were never uploaded.
+      expect(ignored.some((line) => /^!?web\b/.test(line) || line === '*')).toBe(false);
     });
 
     it('references nothing outside web/', () => {

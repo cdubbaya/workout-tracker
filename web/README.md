@@ -6,12 +6,13 @@ The public web surface: a marketing page and the privacy policy. Hosted on Verce
 ## What this is not
 
 **No application logic ships here.** No framework, no build step, no `package.json`, no
-JavaScript — two hand-written HTML files and a `vercel.json`. The `prototype/` directory at
-the repo root is a throwaway and is deliberately **not** promoted into this surface.
+JavaScript — two hand-written HTML files, and a `vercel.json` at the repo root. The
+`prototype/` directory is a throwaway and is deliberately **not** promoted into this
+surface.
 
 That constraint is enforced twice: `app/src/__tests__/web-surface.test.ts` fails if a script
-file or an inline handler appears here, and the `Content-Security-Policy` in `vercel.json`
-is `default-src 'none'` with no `script-src`, so a browser refuses to execute one even if it
+file or an inline handler appears here, and the `Content-Security-Policy` in the config is
+`default-src 'none'` with no `script-src`, so a browser refuses to execute one even if it
 shipped.
 
 Friend-invite landing pages (spec #6) are a later addition to this same surface.
@@ -20,9 +21,36 @@ Friend-invite landing pages (spec #6) are a later addition to this same surface.
 
 ```
 web/
-├── index.html     marketing
-├── privacy.html   the policy, served at /privacy
-└── vercel.json    headers, clean URLs, no build
+├── index.html     marketing, served at /
+└── privacy.html   the policy, served at /privacy
+
+../vercel.json     rewrites, headers, no build
+../.vercelignore   excludes everything that is not the surface
+```
+
+The Vercel config sits at the **repo root**, not here. Vercel reads `vercel.json` from
+its Root Directory, and leaving that at the default `.` means the entire deploy is
+configured in committed code with no dashboard setting that can drift or be forgotten on a
+new project. `rewrites` map `/` and `/privacy` onto the files above.
+
+The cost of serving the repo root is that every path in the repo is a candidate URL, so
+`.vercelignore` excludes everything that is not the surface. Without it the vision doc, the
+glossary and the whole app and prototype source would be publicly fetchable at their repo
+paths.
+
+It is written as a **denylist**, naming each excluded entry. The tidier-looking
+deny-all-then-re-allow (`*` plus `!web/**`) does not work: the exclusion is applied before
+the rewrites resolve, so `/` and `/privacy` end up pointing at files that were never
+uploaded and both 404. Two tests guard the arrangement — one fails if a top-level entry is
+neither published nor ignored, so adding a directory forces a decision rather than silently
+publishing it, and one fails if `web/` is ever excluded.
+
+Verify a config change against Vercel's own runtime rather than by reading it:
+
+```bash
+vercel dev --listen 3999          # from the repo root
+curl -s localhost:3999/privacy | grep -o "<title>[^<]*</title>"
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3999/CONTEXT.md   # must be 404
 ```
 
 Design tokens are ported by hand from `app/src/theme/tokens.ts` into the `:root` block of
@@ -34,22 +62,24 @@ move it here too.
 ## Deploying
 
 The Vercel project is `cdubbayas-projects/workout-tracker`, production URL
-`workout-tracker-ashen-theta.vercel.app`.
+`workout-tracker-ashen-theta.vercel.app`. GitHub integration is connected, so **merging to
+`main` deploys** and pull requests get preview deployments.
 
-**Root Directory must be set to `web/`** in the Vercel project settings. This is the setting
-that makes the deploy independent of the mobile app: with the default root of `.`, Vercel
-would detect the Expo app at `app/` and try to build it.
+**No Vercel dashboard settings are required.** Root Directory stays at its default `.`,
+and `vercel.json` does the rest: `buildCommand`, `installCommand` and `framework` are all
+`null`, so the Expo app at `app/` is never detected or built even though it sits inside the
+deployed root. That is what keeps this deploy independent of the mobile build — the test
+suite asserts all three stay null.
 
-With Git integration connected, every push to `main` deploys. To deploy by hand from a
-clean checkout:
+To deploy by hand from a clean checkout, run from the **repo root** rather than from here:
 
 ```bash
-cd web
 vercel deploy --prod
 ```
 
-There is nothing to install and nothing to build — `buildCommand` is `null` and the output
-directory is the directory itself.
+Preview deployments are protected by Vercel authentication, so an unauthenticated `curl`
+against a preview URL returns the Vercel login page with a `200` — check the page title,
+not the status code, when verifying one.
 
 ## The privacy claim
 
