@@ -217,12 +217,11 @@ describe('The web surface', () => {
      * also the one way this arrangement can leak: every path in the repo is a
      * candidate URL until `.vercelignore` excludes it. The vision doc, the
      * glossary and the whole app and prototype source sit at that root.
-     */
-    /**
-     * A denylist, not deny-all-then-re-allow. `*` with `!web/**` excludes the
-     * pages before the rewrites resolve, so `/` and `/privacy` both 404 —
-     * confirmed against `vercel dev`, which is why this asserts the entries
-     * rather than the tidier-looking form.
+     *
+     * It has to be a denylist, not deny-all-then-re-allow. `*` with `!web/**`
+     * excludes the pages before the rewrites resolve, so `/` and `/privacy`
+     * both 404 — confirmed against `vercel dev`, which is why this asserts the
+     * entries rather than the tidier-looking form.
      */
     it('excludes every non-surface top-level entry from the deploy', () => {
       const ignored = new Set(
