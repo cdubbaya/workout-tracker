@@ -31,7 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
+# `.env` holds the Supabase project URL and publishable key. The publishable key
+# is safe in a client binary — RLS is what protects the data, not key secrecy —
+# but it stays out of git so that the day a secret key exists, the pathway for
+# it is already safe. `.env.example` documents the shape and is committed.
+.env
 .env*.local
+!.env.example
 
 # typescript
 *.tsbuildinfo
