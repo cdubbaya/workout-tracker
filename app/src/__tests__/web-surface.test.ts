@@ -218,42 +218,45 @@ describe('The web surface', () => {
      * candidate URL until `.vercelignore` excludes it. The vision doc, the
      * glossary and the whole app and prototype source sit at that root.
      */
-    it('excludes everything outside the web surface from the deploy', () => {
-      const ignore = readFileSync(join(REPO_ROOT, '.vercelignore'), 'utf8')
+    /**
+     * A denylist, not deny-all-then-re-allow. `*` with `!web/**` excludes the
+     * pages before the rewrites resolve, so `/` and `/privacy` both 404 —
+     * confirmed against `vercel dev`, which is why this asserts the entries
+     * rather than the tidier-looking form.
+     */
+    it('excludes every non-surface top-level entry from the deploy', () => {
+      const ignored = new Set(
+        readFileSync(join(REPO_ROOT, '.vercelignore'), 'utf8')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith('#')),
+      );
+
+      // The surface itself, plus files that are never uploaded anyway.
+      // `.vercel` is local link state that `vercel dev` writes and gitignores;
+      // Vercel excludes it from deployments itself.
+      const published = new Set(['web', 'vercel.json']);
+      const infrastructure = new Set(['.git', '.gitignore', '.vercelignore', '.vercel']);
+
+      const unprotected = readdirSync(REPO_ROOT).filter(
+        (entry) => !published.has(entry) && !infrastructure.has(entry) && !ignored.has(entry),
+      );
+
+      // The tripwire: a new top-level file or directory fails here, forcing a
+      // decision about whether it should be public rather than letting the
+      // deploy answer silently.
+      expect(unprotected).toEqual([]);
+    });
+
+    it('does not ignore the surface it is meant to serve', () => {
+      const ignored = readFileSync(join(REPO_ROOT, '.vercelignore'), 'utf8')
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line && !line.startsWith('#'));
 
-      // Deny-by-default, then re-allow. An allowlist that forgot the `*` would
-      // publish the repo, so assert the deny rule itself is present.
-      expect(ignore).toContain('*');
-      expect(ignore.filter((line) => line.startsWith('!'))).toEqual([
-        '!web/',
-        '!web/**',
-        '!vercel.json',
-      ]);
-    });
-
-    it('publishes nothing at the repo root but the surface itself', () => {
-      const published = new Set(['web', 'vercel.json']);
-      const infrastructure = new Set(['.git', '.gitignore', '.vercelignore']);
-
-      const exposed = readdirSync(REPO_ROOT).filter(
-        (entry) => !published.has(entry) && !infrastructure.has(entry),
-      );
-
-      // Every one of these is denied by the `*` rule above. This test is the
-      // tripwire: adding a top-level file or directory fails here, which forces
-      // a decision about whether it should be public rather than letting the
-      // deploy answer silently.
-      expect(exposed.sort()).toEqual([
-        'CLAUDE.md',
-        'CONTEXT.md',
-        'app',
-        'docs',
-        'prototype',
-        'pushup-counter-vision.md',
-      ]);
+      // Guards the regression this file was written to fix: ignoring `web/`
+      // leaves the rewrites pointing at files that were never uploaded.
+      expect(ignored.some((line) => /^!?web\b/.test(line) || line === '*')).toBe(false);
     });
 
     it('references nothing outside web/', () => {
