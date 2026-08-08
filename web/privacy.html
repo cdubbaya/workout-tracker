@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Push-ups</title>
+    <meta
+      name="description"
+      content="What Push-ups collects and what it does not. Video and pose landmarks never leave your device; workout results and your friends list do."
+    />
+    <link rel="canonical" href="https://workout-tracker-ashen-theta.vercel.app/privacy" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Figtree:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Tokens ported from app/src/theme/tokens.ts — see index.html. */
+      :root {
+        --ink: #0c332e;
+        --ink-soft: #4a6b64;
+        --ink-faint: #93aaa4;
+        --paper: #f6faf8;
+        --line: #e2ece8;
+        --white: #ffffff;
+        --full: #16c088;
+        --full-deep: #0a8f65;
+        --full-wash: #dcf7ec;
+        --social-wash: #ddeffb;
+        --radius-xl: 30px;
+        --display: 'Baloo 2', system-ui, sans-serif;
+        --sans: 'Figtree', system-ui, -apple-system, sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        font-weight: 600;
+        color: var(--ink);
+        background: var(--paper);
+        background-image:
+          radial-gradient(ellipse 80% 40% at 15% 0%, var(--full-wash), transparent 60%),
+          radial-gradient(ellipse 70% 35% at 90% 5%, var(--social-wash), transparent 60%);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.6;
+      }
+
+      .wrap {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+      header {
+        padding: 2rem 0 0;
+      }
+
+      .mark {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 1.3rem;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      h1 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(2.2rem, 6vw, 3rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        margin: 3rem 0 0.5rem;
+      }
+
+      .updated {
+        color: var(--ink-faint);
+        font-size: 0.85rem;
+        margin: 0 0 2rem;
+      }
+
+      h2 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 1.45rem;
+        letter-spacing: -0.01em;
+        margin: 2.75rem 0 0.75rem;
+      }
+
+      h3 {
+        font-family: var(--display);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 1.75rem 0 0.5rem;
+      }
+
+      p,
+      li {
+        color: var(--ink-soft);
+      }
+
+      strong {
+        color: var(--ink);
+      }
+
+      .headline {
+        background: var(--white);
+        border-radius: var(--radius-xl);
+        padding: clamp(1.5rem, 4vw, 2rem);
+        box-shadow: 0 24px 48px -32px var(--ink);
+        margin: 0 0 1rem;
+      }
+
+      .headline p {
+        margin: 0;
+        font-size: 1.15rem;
+        color: var(--ink);
+      }
+
+      ul {
+        padding-left: 1.15rem;
+      }
+
+      li + li {
+        margin-top: 0.4rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 0.7rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        font-weight: 700;
+        color: var(--ink);
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+      }
+
+      a {
+        color: var(--full-deep);
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 3rem;
+        padding: 2rem 0 3rem;
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header><a class="mark" href="/">Push-ups</a></header>
+
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated 7 August 2026</p>
+
+      <div class="headline">
+        <p>
+          <strong
+            >Video and pose landmarks never leave your device; workout results and your
+            friends list do.</strong
+          >
+        </p>
+      </div>
+
+      <p>
+        That sentence is the whole policy in one line. The rest of this page explains exactly
+        what sits on each side of it, because an app that asks you to point a camera at
+        yourself on your bedroom floor owes you a precise answer rather than a reassuring
+        one.
+      </p>
+
+      <h2>What never leaves your device</h2>
+
+      <p>
+        The camera feed is processed entirely on your phone. Pose estimation runs locally,
+        frame by frame, while you are in a set.
+      </p>
+
+      <ul>
+        <li>
+          <strong>Video.</strong> No frame of the camera feed is uploaded, transmitted, or
+          written to storage. It is not recorded even temporarily.
+        </li>
+        <li>
+          <strong>Pose landmarks.</strong> The coordinates describing where your body is in
+          a frame exist in memory for the duration of a rep and are then discarded. They are
+          never uploaded and never written to disk.
+        </li>
+      </ul>
+
+      <p>
+        There is no setting that turns this off, no &ldquo;help us improve&rdquo; toggle that
+        opts you into uploading footage, and no debug mode that ships in the App Store build
+        and behaves differently. The camera is the only sensor the app uses, and what it sees
+        stays on the phone.
+      </p>
+
+      <h2>What does leave your device</h2>
+
+      <p>
+        Your results sync to our server so that they survive losing your phone and so that
+        friend challenges work. This is real data about you, held on a server we operate, and
+        it is worth naming item by item.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">What</th>
+            <th scope="col">Why it leaves the device</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Identity</strong> &mdash; your account, sign-in details and display name</td>
+            <td>So your history is yours across reinstalls, and so friends can find you.</td>
+          </tr>
+          <tr>
+            <td><strong>Your friends list</strong> &mdash; the friend graph</td>
+            <td>
+              Challenges are friends-only, so the connections have to be stored. We never
+              upload or scan your phone&rsquo;s contacts to build it.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>XP ledger</strong> &mdash; what you earned, when</td>
+            <td>Streaks, levels and challenge standings are computed from it.</td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Rep Logs</strong> &mdash; per-rep metrics: depth ratio, tempo, variant,
+              full or half, and detector confidence
+            </td>
+            <td>
+              A small derived record per rep. Enough to recompute whether a rep should have
+              counted &mdash; which is what lets us investigate a miscount &mdash; with no
+              reconstructable body, room, or person in it.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        A Rep Log is a handful of numbers. It is not an image, not a landmark stream, and
+        nothing in it can be reassembled into a picture of you or of the room you were in.
+      </p>
+
+      <h2>Apple Health</h2>
+
+      <p>
+        If you grant permission, completed sessions are written to HealthKit as workouts so
+        that your push-ups sit alongside the rest of your training history and your rings
+        close. The permission is write-only: the app does not read anything from HealthKit,
+        and it will work normally if you decline.
+      </p>
+
+      <p>Health data carries obligations we take as absolute commitments:</p>
+
+      <ul>
+        <li>
+          Data written to or read from HealthKit is
+          <strong>never used for advertising</strong> or any use-based data mining, by us or
+          by anyone else.
+        </li>
+        <li>
+          It is <strong>never sold to data brokers</strong>, advertising platforms, or
+          information resellers. We do not sell your personal data at all.
+        </li>
+        <li>
+          It is used only to give you your own workout history inside the app and in Apple
+          Health.
+        </li>
+      </ul>
+
+      <h2>Who else sees your data</h2>
+
+      <p>
+        Your friends see what you would expect them to see: your display name and your
+        standing in challenges you are both part of, scored as a share of each
+        person&rsquo;s own daily budget. They do not see your rep logs.
+      </p>
+
+      <p>
+        We use Supabase to host the database and authentication, and Vercel to host this
+        website. They process data on our behalf as infrastructure providers and do not have
+        the right to use it for their own purposes. Beyond that, we do not share, rent, or
+        sell your data with anyone, and there are no advertising or analytics SDKs collecting
+        your behaviour in the app.
+      </p>
+
+      <h2>Your control</h2>
+
+      <ul>
+        <li>
+          <strong>Deletion.</strong> You can delete your account from within the app. That
+          removes your identity, your friend graph, your XP ledger and your rep logs from our
+          server.
+        </li>
+        <li>
+          <strong>Export.</strong> You can request a copy of what we hold about you by
+          emailing us.
+        </li>
+        <li>
+          <strong>Apple Health.</strong> Revoke the write permission any time in the Health
+          app. Data already written there is yours and is managed by Apple Health, not by us.
+        </li>
+        <li>
+          <strong>Camera.</strong> Revoke camera access in iOS Settings. Rep counting is the
+          only thing that uses it, so the counter stops working, but nothing else changes.
+        </li>
+      </ul>
+
+      <h2>Children</h2>
+
+      <p>
+        The app is not directed at children under 13, and we do not knowingly collect their
+        personal information.
+      </p>
+
+      <h2>Changes to this policy</h2>
+
+      <p>
+        If this policy changes materially &mdash; particularly the sentence at the top of this
+        page &mdash; we will update the date above and tell you in the app before the change
+        takes effect.
+      </p>
+
+      <h2>Contact</h2>
+
+      <p>
+        Questions about this policy, or a request to export or delete your data:
+        <a href="mailto:privacy@pushups.app">privacy@pushups.app</a>.
+      </p>
+
+      <footer>
+        <a href="/">Back to Push-ups</a>
+      </footer>
+    </div>
+  </body>
+</html>
