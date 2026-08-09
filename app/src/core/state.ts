@@ -6,7 +6,7 @@
  * keeping the field absent makes it a structural one.
  */
 
-import type { Identity, LocalDate, Timestamp } from './events';
+import type { Identity, LocalDate, Timestamp, WriteId } from './events';
 
 export type CoreState = {
   /** `null` when signed out. The signed-out state is a real state, not an absence. */
@@ -37,6 +37,20 @@ export type CoreState = {
    * is precisely the flash of onboarding the issue forbids.
    */
   onboardingKnown: boolean;
+  /**
+   * The writes the core has asked for and the server has not confirmed, in the
+   * order they were asked for.
+   *
+   * Ids rather than the writes themselves: the queue is the durable copy, and a
+   * second copy in core state would be a second thing to keep in step. What the
+   * core needs is only whether anything is still owed — which is what lets a
+   * later spec tell a user their Session is still on the phone.
+   *
+   * Cleared by `SyncAcknowledged`. A write that is redelivered after a dropped
+   * acknowledgement is already absent here, so the second confirmation is a
+   * no-op rather than an error.
+   */
+  pendingWriteIds: readonly WriteId[];
 };
 
 export const initialState: CoreState = {
@@ -44,6 +58,7 @@ export const initialState: CoreState = {
   today: null,
   onboardingAcknowledgedAt: null,
   onboardingKnown: false,
+  pendingWriteIds: [],
 };
 
 /** Which screen the state puts the user on. */

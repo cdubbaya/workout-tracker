@@ -13,7 +13,7 @@ import {
   eventForSession,
   identityOf,
   localDayOf,
-  onboardingEventFor,
+  remoteStateEventFor,
   runEffect,
 } from '../auth';
 import { createClockDriver } from '../clock';
@@ -69,27 +69,38 @@ describe('identityOf', () => {
 describe('eventForSession', () => {
   it('turns a session into SignedIn carrying the identity and the timestamp', () => {
     const at = 1_775_000_000_000;
-    const event = eventForSession(aSession(), at);
+    const event = eventForSession(aSession(), at, 'write-sign-in-1');
 
     expect(event).toEqual({
       type: 'SignedIn',
       at,
       identity: { userId: aUser().id, email: 'ada@example.com' },
       today: localDayOf(at),
+      // Passed through rather than minted here, so the profile write this
+      // raises keeps one key across every delivery attempt.
+      writeId: 'write-sign-in-1',
     });
   });
 
   it('turns an absent session into SignedOut', () => {
     const at = 1_775_000_000_000;
 
-    expect(eventForSession(null, at)).toEqual({ type: 'SignedOut', at });
+    // No key on the event: signing out writes nothing to the server, so
+    // carrying one would promise a delivery that never happens.
+    expect(eventForSession(null, at, 'write-sign-in-1')).toEqual({
+      type: 'SignedOut',
+      at,
+    });
   });
 
   it('treats a session whose user has no email as signed out', () => {
     const at = 1_775_000_000_000;
     const session = aSession(aUser({ email: undefined }));
 
-    expect(eventForSession(session, at)).toEqual({ type: 'SignedOut', at });
+    expect(eventForSession(session, at, 'write-sign-in-1')).toEqual({
+      type: 'SignedOut',
+      at,
+    });
   });
 });
 
@@ -177,6 +188,7 @@ describe('runEffect', () => {
 
     await runEffect(client as never, {
       type: 'PersistProfile',
+      writeId: 'write-1',
       userId: 'user-42',
       email: 'grace@example.com',
       at: Date.UTC(2026, 7, 7, 10, 0, 0),
@@ -202,6 +214,7 @@ describe('runEffect', () => {
     await expect(
       runEffect(client as never, {
         type: 'PersistProfile',
+        writeId: 'write-1',
         userId: 'user-42',
         email: 'grace@example.com',
         at: 0,
@@ -218,6 +231,7 @@ describe('runEffect, for the onboarding acknowledgement', () => {
 
     await runEffect(client as never, {
       type: 'PersistOnboardingAcknowledgement',
+      writeId: 'write-1',
       userId: 'user-42',
       at: Date.UTC(2026, 7, 7, 10, 0, 0),
     });
@@ -243,6 +257,7 @@ describe('runEffect, for the onboarding acknowledgement', () => {
     await expect(
       runEffect(client as never, {
         type: 'PersistOnboardingAcknowledgement',
+        writeId: 'write-1',
         userId: 'user-42',
         at: 0,
       }),
@@ -263,6 +278,7 @@ describe('Signing in again, for a user who has acknowledged', () => {
 
     await runEffect(client as never, {
       type: 'PersistProfile',
+      writeId: 'write-1',
       userId: 'user-42',
       email: 'grace@example.com',
       at: 0,
@@ -274,7 +290,7 @@ describe('Signing in again, for a user who has acknowledged', () => {
   });
 });
 
-describe('onboardingEventFor', () => {
+describe('remoteStateEventFor', () => {
   /**
    * Supabase hands back the column as the string PostgREST rendered, not a Date
    * and not a number. A double that returned a timestamp would go green over a
@@ -302,7 +318,7 @@ describe('onboardingEventFor', () => {
       error: null,
     });
 
-    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+    const event = await remoteStateEventFor(client as never, 'user-42', 1_775_000_000_000);
 
     expect(select).toHaveBeenCalledWith('onboarding_acknowledged_at');
     expect(eq).toHaveBeenCalledWith('id', 'user-42');
@@ -310,9 +326,9 @@ describe('onboardingEventFor', () => {
     // Derived from the stated instant rather than pinned to a literal the
     // implementation happened to produce.
     expect(event).toEqual({
-      type: 'OnboardingLoaded',
+      type: 'RemoteStateLoaded',
       at: 1_775_000_000_000,
-      acknowledgedAt: Date.UTC(2026, 7, 7, 10, 0, 0),
+      snapshot: { onboardingAcknowledgedAt: Date.UTC(2026, 7, 7, 10, 0, 0) },
     });
   });
 
@@ -322,27 +338,27 @@ describe('onboardingEventFor', () => {
       error: null,
     });
 
-    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+    const event = await remoteStateEventFor(client as never, 'user-42', 1_775_000_000_000);
 
     expect(event).toEqual({
-      type: 'OnboardingLoaded',
+      type: 'RemoteStateLoaded',
       at: 1_775_000_000_000,
-      acknowledgedAt: null,
+      snapshot: { onboardingAcknowledgedAt: null },
     });
   });
 
   it('reports null when no row exists yet', async () => {
-    // `PersistProfile` is fire-and-forget, so the first cold start after a
-    // sign-up can read before the row lands. A new user seeing onboarding is
-    // the right answer here; throwing would leave them on a blank screen.
+    // The profile write goes through the queue, so the first cold start after
+    // a sign-up can read before it drains. A new user seeing onboarding is the
+    // right answer here; throwing would leave them on a blank screen.
     const { client } = clientReturning({ data: null, error: null });
 
-    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+    const event = await remoteStateEventFor(client as never, 'user-42', 1_775_000_000_000);
 
     expect(event).toEqual({
-      type: 'OnboardingLoaded',
+      type: 'RemoteStateLoaded',
       at: 1_775_000_000_000,
-      acknowledgedAt: null,
+      snapshot: { onboardingAcknowledgedAt: null },
     });
   });
 
@@ -354,7 +370,7 @@ describe('onboardingEventFor', () => {
     const { client } = clientReturning({ data: null, error });
 
     await expect(
-      onboardingEventFor(client as never, 'user-42', 1_775_000_000_000),
+      remoteStateEventFor(client as never, 'user-42', 1_775_000_000_000),
     ).rejects.toEqual(error);
   });
 });

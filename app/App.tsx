@@ -60,7 +60,7 @@ const client = createSupabaseClient();
  * persisted session before reporting ready.
  */
 function Root() {
-  const { state, ready, dispatch } = useCore(client);
+  const { state, ready, dispatch, nextWriteId } = useCore(client);
 
   if (!ready) {
     return null;
@@ -81,9 +81,13 @@ function Root() {
         <OnboardingScreen
           onAcknowledge={() => {
             // The screen reports the intent; the core records it and emits the
-            // write. Timestamped here because this is the driver layer — the
-            // core never reads a clock.
-            dispatch({ type: 'OnboardingAcknowledged', at: Date.now() });
+            // write. Timestamped and keyed here because this is the driver
+            // layer — the core reads neither a clock nor a randomness source.
+            dispatch({
+              type: 'OnboardingAcknowledged',
+              at: Date.now(),
+              writeId: nextWriteId(),
+            });
           }}
         />
       );

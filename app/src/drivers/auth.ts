@@ -10,8 +10,15 @@
 
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 
-import type { CoreEvent, Identity, LocalDate, Timestamp, UserId } from '../core/events';
-import type { Effect } from '../core/effects';
+import type {
+  CoreEvent,
+  Identity,
+  LocalDate,
+  Timestamp,
+  UserId,
+  WriteId,
+} from '../core/events';
+import type { QueuedWrite } from '../core/effects';
 
 /**
  * The local calendar day for an instant. Lives in the driver because it reads
@@ -45,10 +52,15 @@ export function identityOf(user: User | null | undefined): Identity | null {
  * The event a session change implies. `null` when a session carries no usable
  * identity, so a malformed session is ignored rather than signing someone in
  * as a user with no email.
+ *
+ * `writeId` is passed in rather than minted here: the id has to key the profile
+ * write for every delivery attempt, so it belongs to the caller that owns the
+ * generator and not to a function called once per auth callback.
  */
 export function eventForSession(
   session: Session | null,
   at: Timestamp,
+  writeId: WriteId,
 ): CoreEvent | null {
   const identity = identityOf(session?.user);
 
@@ -56,19 +68,31 @@ export function eventForSession(
     return { type: 'SignedOut', at };
   }
 
-  return { type: 'SignedIn', at, identity, today: localDayOf(at) };
+  return { type: 'SignedIn', at, identity, today: localDayOf(at), writeId };
 }
 
 /**
- * Execute one effect. Effects are data until they reach here.
+ * Deliver one queued write. Effects are data until they reach here.
  *
- * `PersistProfile` upserts on the primary key, so the at-least-once queue spec
- * #1 describes cannot create a second profile by replaying it. Its payload names
- * only the columns a sign-in owns — Supabase builds the `do update set` clause
- * from exactly those keys, so a re-sign-in leaves the onboarding acknowledgement
- * alone rather than resetting it.
+ * This is the sync driver's transport, so it is reached only from a drain and
+ * only for writes the queue is holding. A rejection is how the driver learns
+ * the write is still owed — every failure path below therefore throws rather
+ * than reporting success.
+ *
+ * Every statement here is idempotent, keyed so that redelivering it writes the
+ * same row rather than a second one. That is what makes at-least-once delivery
+ * (ADR-0010) safe: an acknowledgement lost on the way back costs a duplicate
+ * delivery, and a duplicate delivery costs nothing.
+ *
+ * `PersistProfile` upserts on the primary key, so a replay cannot create a
+ * second profile. Its payload names only the columns a sign-in owns — Supabase
+ * builds the `do update set` clause from exactly those keys, so a re-sign-in
+ * leaves the onboarding acknowledgement alone rather than resetting it.
  */
-export async function runEffect(client: SupabaseClient, effect: Effect): Promise<void> {
+export async function runEffect(
+  client: SupabaseClient,
+  effect: QueuedWrite,
+): Promise<void> {
   switch (effect.type) {
     case 'PersistProfile': {
       const { error } = await client.from('profile').upsert(
@@ -103,25 +127,26 @@ export async function runEffect(client: SupabaseClient, effect: Effect): Promise
       return;
     }
 
-    case 'ClearLocalState':
-      // Nothing local is cached yet — the durable queue arrives with the
-      // offline work. Handled explicitly so that adding a cache later has an
-      // obvious home rather than discovering this branch was silently absent.
-      return;
   }
 }
 
 /**
- * Read what the profile says about onboarding.
+ * Read the server's snapshot for this user, as `RemoteStateLoaded`.
  *
  * This is what makes acknowledgement survive app termination: the client holds
- * nothing across a cold start, so the row is the only place the answer lives.
+ * nothing across a cold start beyond its own unsent queue, so the row is where
+ * the answer lives.
  *
  * A read failure rejects rather than reporting `null`. Reporting `null` would
  * show the disclaimer again to a user who accepted it and then overwrite the
  * timestamp they accepted it at — a silent loss, where a rejection is a retry.
+ *
+ * The snapshot is what the *server* knows, which is not everything the user
+ * did: a write still sitting in the queue is newer than anything in here. The
+ * core reconciles that, so this function does not have to know the queue
+ * exists.
  */
-export async function onboardingEventFor(
+export async function remoteStateEventFor(
   client: SupabaseClient,
   userId: UserId,
   at: Timestamp,
@@ -136,15 +161,18 @@ export async function onboardingEventFor(
     throw error;
   }
 
-  // No row is not an error: `PersistProfile` is fire-and-forget, so a first cold
-  // start can outrun it. A user with no row has not acknowledged.
+  // No row is not an error: the profile write may still be sitting in the
+  // queue, so a first cold start can outrun it. A user with no row has not
+  // acknowledged as far as the server is concerned.
   const raw = data?.onboarding_acknowledged_at ?? null;
 
   return {
-    type: 'OnboardingLoaded',
+    type: 'RemoteStateLoaded',
     at,
-    // Postgres hands back the string it rendered, not a number. Parsed here
-    // because the core deals in timestamps and never in a database's formats.
-    acknowledgedAt: raw === null ? null : new Date(raw).getTime(),
+    snapshot: {
+      // Postgres hands back the string it rendered, not a number. Parsed here
+      // because the core deals in timestamps and never in a database's formats.
+      onboardingAcknowledgedAt: raw === null ? null : new Date(raw).getTime(),
+    },
   };
 }

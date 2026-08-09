@@ -30,10 +30,16 @@ export function reduce(state: CoreState, event: CoreEvent): Outcome {
   switch (event.type) {
     case 'SignedIn':
       return {
-        state: { ...state, identity: event.identity, today: event.today },
+        state: {
+          ...state,
+          identity: event.identity,
+          today: event.today,
+          pendingWriteIds: [...state.pendingWriteIds, event.writeId],
+        },
         effects: [
           {
             type: 'PersistProfile',
+            writeId: event.writeId,
             userId: event.identity.userId,
             email: event.identity.email,
             at: event.at,
@@ -77,16 +83,59 @@ export function reduce(state: CoreState, event: CoreEvent): Outcome {
       return {
         // Known too: the user just answered, so nothing needs to ask the
         // profile before showing them Home.
-        state: { ...state, onboardingAcknowledgedAt: event.at, onboardingKnown: true },
+        state: {
+          ...state,
+          onboardingAcknowledgedAt: event.at,
+          onboardingKnown: true,
+          pendingWriteIds: [...state.pendingWriteIds, event.writeId],
+        },
         effects: [
           {
             type: 'PersistOnboardingAcknowledgement',
+            writeId: event.writeId,
             userId: state.identity.userId,
             at: event.at,
           },
         ],
       };
     }
+
+    case 'SyncAcknowledged': {
+      // The server confirmed a batch. What it named is no longer owed; what it
+      // did not name still is, which is the normal shape of a drain that
+      // stopped where the signal did.
+      const landed = new Set(event.writeIds);
+
+      return {
+        state: {
+          ...state,
+          pendingWriteIds: state.pendingWriteIds.filter((id) => !landed.has(id)),
+        },
+        // Confirming a write is not a reason to write again. A redelivered
+        // acknowledgement lands on a core that has already forgotten the write
+        // and changes nothing, which is what makes at-least-once safe here.
+        effects: NO_EFFECTS,
+      };
+    }
+
+    case 'RemoteStateLoaded':
+      return {
+        state: {
+          ...state,
+          // The snapshot is what the server knew when it answered, so a write
+          // still sitting in the queue is newer than anything in it. Adopting
+          // it verbatim would send a user who acknowledged offline back through
+          // onboarding. Local wins while local is unconfirmed; once the queue
+          // drains, the snapshot and the local answer agree anyway.
+          onboardingAcknowledgedAt:
+            state.pendingWriteIds.length > 0 && state.onboardingAcknowledgedAt !== null
+              ? state.onboardingAcknowledgedAt
+              : event.snapshot.onboardingAcknowledgedAt,
+          onboardingKnown: true,
+        },
+        // Echoing the snapshot back would re-stamp the row on every cold start.
+        effects: NO_EFFECTS,
+      };
 
     case 'OnboardingLoaded':
       // What the profile said, adopted verbatim — including `null`, which is a

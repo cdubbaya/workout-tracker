@@ -7,13 +7,18 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { reduce } from '../core/reduce';
 import { initialState, type CoreState } from '../core/state';
+import { isQueuedWrite } from '../core/effects';
 import type { CoreEvent } from '../core/events';
-import { eventForSession, onboardingEventFor, runEffect } from '../drivers/auth';
+import { eventForSession, remoteStateEventFor, runEffect } from '../drivers/auth';
 import { createClockDriver } from '../drivers/clock';
+import { createWriteQueue } from '../drivers/queue';
+import { createSyncDriver, SYNC_POLL_INTERVAL_MS } from '../drivers/sync';
+import { createWriteIds } from '../drivers/writeId';
 
 export type CoreSession = {
   state: CoreState;
@@ -21,11 +26,29 @@ export type CoreSession = {
    * flashing a signed-out screen at a signed-in user on cold start. */
   ready: boolean;
   dispatch: (event: CoreEvent) => void;
+  /**
+   * The id to put on the next event that raises a write. Read from the driver
+   * rather than generated at the call site, so that a screen cannot mint a key
+   * the queue has already used.
+   */
+  nextWriteId: () => string;
 };
 
 export function useCore(client: SupabaseClient): CoreSession {
   const [state, setState] = useState<CoreState>(initialState);
   const [ready, setReady] = useState(false);
+
+  // One generator for the life of the app: a second one could restart its
+  // counter and mint an id the queue is already holding.
+  const nextWriteId = useMemo(() => createWriteIds(), []);
+
+  // The queue is durable, so it is built from storage rather than held in
+  // state — everything it knows outlives this component and this process.
+  const queue = useMemo(() => createWriteQueue(AsyncStorage), []);
+  const sync = useMemo(
+    () => createSyncDriver(queue, (write) => runEffect(client, write)),
+    [client, queue],
+  );
 
   // Effects run outside the state updater: a reducer that performed I/O would
   // run it twice under StrictMode, and would stop being pure besides.
@@ -47,13 +70,41 @@ export function useCore(client: SupabaseClient): CoreSession {
     pending.current = [];
 
     for (const effect of effects) {
-      // A failed write must not take the screen down with it. The durable
-      // queue that makes this retry properly arrives with the offline work.
-      void runEffect(client, effect).catch((error) => {
-        console.warn('effect failed', effect.type, error);
-      });
+      if (!isQueuedWrite(effect)) {
+        // Local-only. `ClearLocalState` must not wait on a signal — signing
+        // out on a plane is still signing out.
+        continue;
+      }
+
+      // Durable before attempted. The write reaches disk first and the network
+      // second, so a crash between the two costs a retry rather than a Session.
+      // A storage failure is warned about rather than thrown: taking the screen
+      // down would not make the write land.
+      void queue
+        .enqueue(effect)
+        .then(() => sync.drain())
+        .then((writeIds) => {
+          if (writeIds.length > 0) {
+            dispatch({ type: 'SyncAcknowledged', at: Date.now(), writeIds });
+          }
+        })
+        .catch((error) => {
+          console.warn('could not queue write', effect.type, error);
+        });
     }
   });
+
+  /**
+   * The retry loop. Runs for the life of the app rather than per screen, which
+   * is what makes "syncs automatically on reconnect" true with no user action —
+   * a backlog drains whether or not anyone is looking at the screen that made
+   * it.
+   */
+  useEffect(() => {
+    return sync.start((writeIds) => {
+      dispatch({ type: 'SyncAcknowledged', at: Date.now(), writeIds });
+    });
+  }, [sync, dispatch]);
 
   useEffect(() => {
     let active = true;
@@ -64,7 +115,7 @@ export function useCore(client: SupabaseClient): CoreSession {
       if (!active) {
         return;
       }
-      const event = eventForSession(data.session, Date.now());
+      const event = eventForSession(data.session, Date.now(), nextWriteId());
       if (event) {
         dispatch(event);
       }
@@ -72,7 +123,7 @@ export function useCore(client: SupabaseClient): CoreSession {
     });
 
     const { data: subscription } = client.auth.onAuthStateChange((_event, session) => {
-      const event = eventForSession(session, Date.now());
+      const event = eventForSession(session, Date.now(), nextWriteId());
       if (event) {
         dispatch(event);
       }
@@ -85,7 +136,7 @@ export function useCore(client: SupabaseClient): CoreSession {
   }, [client, dispatch]);
 
   /**
-   * What the profile says about onboarding, fetched once per signed-in user.
+   * The server's snapshot, fetched once per signed-in user on cold start.
    *
    * Keyed on the user id rather than on the identity object, so a token refresh
    * handing back an equal-but-new identity does not re-read the row. Runs only
@@ -94,8 +145,9 @@ export function useCore(client: SupabaseClient): CoreSession {
    *
    * A failed read leaves `onboardingKnown` false, which holds the user on the
    * loading screen rather than showing the disclaimer to someone who has
-   * already accepted it. The retry arrives with the offline queue, alongside the
-   * one for `runEffect`.
+   * already accepted it — and retries on an interval, so a user who opened the
+   * app with no signal lands on Home the moment one arrives rather than needing
+   * to relaunch.
    */
   const userId = state.identity?.userId ?? null;
   const known = state.onboardingKnown;
@@ -107,18 +159,28 @@ export function useCore(client: SupabaseClient): CoreSession {
 
     let active = true;
 
-    void onboardingEventFor(client, userId, Date.now())
-      .then((event) => {
-        if (active) {
-          dispatch(event);
-        }
-      })
-      .catch((error) => {
-        console.warn('could not read onboarding acknowledgement', error);
-      });
+    const attempt = () => {
+      void remoteStateEventFor(client, userId, Date.now())
+        .then((event) => {
+          if (active) {
+            dispatch(event);
+          }
+        })
+        .catch((error) => {
+          console.warn('could not read remote state', error);
+        });
+    };
+
+    // Immediately, then on the sync driver's cadence until it lands. A single
+    // attempt would strand a user who opened the app offline on the loading
+    // screen until they relaunched — a network problem blocking a workout,
+    // which is exactly what this ticket forbids.
+    attempt();
+    const handle = setInterval(attempt, SYNC_POLL_INTERVAL_MS);
 
     return () => {
       active = false;
+      clearInterval(handle);
     };
   }, [client, dispatch, userId, known]);
 
@@ -137,5 +199,5 @@ export function useCore(client: SupabaseClient): CoreSession {
     );
   }, [clock, dispatch]);
 
-  return { state, ready, dispatch };
+  return { state, ready, dispatch, nextWriteId };
 }
