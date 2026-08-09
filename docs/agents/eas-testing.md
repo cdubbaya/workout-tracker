@@ -141,6 +141,17 @@ IPv4 connection. Use the dashboard SQL editor instead.
 **The build installs but shows an old version** — a development build loads from Metro, so
 check `start:dev` is running and the phone is on the same network.
 
+**`Unknown error. See logs of the Install dependencies build phase`, failing in well under a
+minute** — a Node version mismatch on the build server. React Native 0.86 requires
+`^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0`, which notably excludes Node 20 below
+20.19.4 and all of 21 and 23. `eas.json` pins `node` in a `base` profile that every other
+profile extends, and `package.json` declares the same range in `engines`; if EAS's default
+image ever moves outside it, bump the pin rather than removing it.
+
+A build that fails this fast has died at dependency install rather than compilation, which
+is the quickest way to tell this apart from a real build error. `eas build:view <id>` shows
+`buildDuration` — a few thousand milliseconds means install, not compile.
+
 ## Why the values live on EAS rather than in `.env`
 
 `.env` is gitignored, which is correct — it means each new worktree starts without one.
