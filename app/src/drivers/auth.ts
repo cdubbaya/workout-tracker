@@ -10,7 +10,7 @@
 
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 
-import type { CoreEvent, Identity, LocalDate, Timestamp } from '../core/events';
+import type { CoreEvent, Identity, LocalDate, Timestamp, UserId } from '../core/events';
 import type { Effect } from '../core/effects';
 
 /**
@@ -63,7 +63,10 @@ export function eventForSession(
  * Execute one effect. Effects are data until they reach here.
  *
  * `PersistProfile` upserts on the primary key, so the at-least-once queue spec
- * #1 describes cannot create a second profile by replaying it.
+ * #1 describes cannot create a second profile by replaying it. Its payload names
+ * only the columns a sign-in owns — Supabase builds the `do update set` clause
+ * from exactly those keys, so a re-sign-in leaves the onboarding acknowledgement
+ * alone rather than resetting it.
  */
 export async function runEffect(client: SupabaseClient, effect: Effect): Promise<void> {
   switch (effect.type) {
@@ -82,10 +85,66 @@ export async function runEffect(client: SupabaseClient, effect: Effect): Promise
       return;
     }
 
+    case 'PersistOnboardingAcknowledgement': {
+      // An update rather than an upsert: sign-in already created the row, and an
+      // upsert would have to supply `email` to satisfy its not-null column —
+      // which this effect does not carry, because an acknowledgement is not an
+      // identity claim.
+      const { error } = await client
+        .from('profile')
+        .update({
+          onboarding_acknowledged_at: new Date(effect.at).toISOString(),
+          updated_at: new Date(effect.at).toISOString(),
+        })
+        .eq('id', effect.userId);
+      if (error) {
+        throw error;
+      }
+      return;
+    }
+
     case 'ClearLocalState':
       // Nothing local is cached yet — the durable queue arrives with the
       // offline work. Handled explicitly so that adding a cache later has an
       // obvious home rather than discovering this branch was silently absent.
       return;
   }
+}
+
+/**
+ * Read what the profile says about onboarding.
+ *
+ * This is what makes acknowledgement survive app termination: the client holds
+ * nothing across a cold start, so the row is the only place the answer lives.
+ *
+ * A read failure rejects rather than reporting `null`. Reporting `null` would
+ * show the disclaimer again to a user who accepted it and then overwrite the
+ * timestamp they accepted it at — a silent loss, where a rejection is a retry.
+ */
+export async function onboardingEventFor(
+  client: SupabaseClient,
+  userId: UserId,
+  at: Timestamp,
+): Promise<CoreEvent> {
+  const { data, error } = await client
+    .from('profile')
+    .select('onboarding_acknowledged_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  // No row is not an error: `PersistProfile` is fire-and-forget, so a first cold
+  // start can outrun it. A user with no row has not acknowledged.
+  const raw = data?.onboarding_acknowledged_at ?? null;
+
+  return {
+    type: 'OnboardingLoaded',
+    at,
+    // Postgres hands back the string it rendered, not a number. Parsed here
+    // because the core deals in timestamps and never in a database's formats.
+    acknowledgedAt: raw === null ? null : new Date(raw).getTime(),
+  };
 }

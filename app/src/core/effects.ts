@@ -32,7 +32,27 @@ export type ClearLocalState = {
   type: 'ClearLocalState';
 };
 
-export type Effect = PersistProfile | ClearLocalState;
+/**
+ * Write the disclaimer acknowledgement to the user's `profile` row.
+ *
+ * Separate from `PersistProfile` rather than folded into it: that effect carries
+ * the identity a sign-in established, and an acknowledgement is a different
+ * fact arriving at a different moment. Merging them would mean every sign-in
+ * restating the acknowledgement, and every acknowledgement restating the email.
+ *
+ * Idempotent — an at-least-once queue replaying it writes the same timestamp.
+ */
+export type PersistOnboardingAcknowledgement = {
+  type: 'PersistOnboardingAcknowledgement';
+  userId: UserId;
+  /** The client's timestamp, which the server accepts (ADR-0010). */
+  at: Timestamp;
+};
+
+export type Effect =
+  | PersistProfile
+  | ClearLocalState
+  | PersistOnboardingAcknowledgement;
 
 /** Convenience for drivers and tests narrowing a collected effect list. */
 export function isEffect<T extends Effect['type']>(

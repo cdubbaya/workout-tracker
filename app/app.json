@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cdubbaya.pushupcounter",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Push-ups uses the camera to count your reps. The video never leaves your device and is never recorded."
       }
     },
     "android": {
