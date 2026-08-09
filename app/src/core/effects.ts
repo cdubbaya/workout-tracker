@@ -53,10 +53,37 @@ export type PersistOnboardingAcknowledgement = {
   at: Timestamp;
 };
 
+/**
+ * Delete the user's account and everything that references it.
+ *
+ * Carries a `writeId`, so it is a queued write rather than a local one: leaving
+ * has to survive a phone with no signal exactly as a Session does. Pairs with
+ * `ClearLocalState`, which handles this device — this effect is the half that
+ * reaches the server.
+ *
+ * A *deletion* and not a flag. The row goes; the cascade takes everything
+ * referencing it. Which rows those are is the database's answer rather than a
+ * list kept here, because a list kept here is a list a later spec forgets to
+ * add its table to.
+ *
+ * Idempotent in the way deletion is: replaying it against an account already
+ * gone finds nothing to delete and reports success, so an at-least-once
+ * redelivery costs nothing.
+ */
+export type DeleteAccount = {
+  type: 'DeleteAccount';
+  /** The client-generated key this write keeps for every delivery attempt. */
+  writeId: WriteId;
+  userId: UserId;
+  /** The client's timestamp, which the server accepts (ADR-0010). */
+  at: Timestamp;
+};
+
 export type Effect =
   | PersistProfile
   | ClearLocalState
-  | PersistOnboardingAcknowledgement;
+  | PersistOnboardingAcknowledgement
+  | DeleteAccount;
 
 /**
  * The effects that cross the network, and therefore the ones the durable queue

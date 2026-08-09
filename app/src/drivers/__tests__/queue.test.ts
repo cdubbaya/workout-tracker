@@ -178,6 +178,45 @@ describe('Acknowledging a write', () => {
   });
 });
 
+describe('Clearing local state, when a user signs out or deletes their account', () => {
+  const deletionWrite = (writeId: string): QueuedWrite => ({
+    type: 'DeleteAccount',
+    writeId,
+    userId: 'user-ada-1',
+    at: 1_700_000_300_000,
+  });
+
+  it('drops the previous user writes, so handing the phone over hands over nothing', async () => {
+    const storage = aStorage();
+    const queue = createWriteQueue(storage);
+    await queue.enqueue(profileWrite('write-1', 'ada@example.com'));
+    await queue.enqueue(acknowledgementWrite('write-2', 1_700_000_000_000));
+
+    await queue.clear();
+
+    // Durably, not merely in this instance: a queue that cleared in memory
+    // would hand the next user the previous one's writes on the next cold start.
+    expect(await createWriteQueue(storage).pending()).toEqual([]);
+  });
+
+  it('keeps a pending deletion, which is the one write that outlives its user', async () => {
+    // The trap. Deleting an account emits `DeleteAccount` *and*
+    // `ClearLocalState`, so a clear that took everything would erase the
+    // deletion before it was ever delivered — and a user who deleted their
+    // account with no signal would stay in the database forever, with nothing
+    // left on the phone to retry it.
+    const storage = aStorage();
+    const queue = createWriteQueue(storage);
+    await queue.enqueue(profileWrite('write-1', 'ada@example.com'));
+    await queue.enqueue(deletionWrite('write-delete'));
+
+    await queue.clear();
+
+    const remaining = await createWriteQueue(storage).pending();
+    expect(remaining.map((write) => write.writeId)).toEqual(['write-delete']);
+  });
+});
+
 describe('A write the storage refused', () => {
   it('is not silently dropped — the caller learns it did not land', async () => {
     const storage = aStorage();

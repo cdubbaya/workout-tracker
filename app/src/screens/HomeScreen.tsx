@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Identity } from '../core/events';
@@ -77,9 +77,38 @@ export type HomeScreenProps = {
   /** The signed-in user, or `null` before anyone has signed in. */
   identity?: Identity | null;
   onSignOut?: () => void;
+  /**
+   * Called once the user has confirmed. The screen owns the confirmation; what
+   * deletion *means* belongs to the core, as it does for sign-out.
+   */
+  onDeleteAccount?: () => void;
 };
 
-export function HomeScreen({ identity = null, onSignOut }: HomeScreenProps = {}) {
+/**
+ * Ask before destroying an account, and say plainly that it is permanent.
+ *
+ * A platform alert rather than a screen of its own: the decision is one
+ * question with two answers, and routing to a page for it invites the user to
+ * skim. The destructive style is what puts the weight on the right button.
+ */
+function confirmDeletion(onConfirm: () => void) {
+  Alert.alert(
+    'Delete your account?',
+    'This deletes your account and every session, streak and challenge in it. ' +
+      'It cannot be undone.',
+    [
+      // Cancel first, and the default: the safe answer should be the easy one.
+      { text: 'Keep my account', style: 'cancel' },
+      { text: 'Delete everything', style: 'destructive', onPress: onConfirm },
+    ],
+  );
+}
+
+export function HomeScreen({
+  identity = null,
+  onSignOut,
+  onDeleteAccount,
+}: HomeScreenProps = {}) {
   const insets = useSafeAreaInsets();
   const paired = HOME_SLOTS.filter((slot) => slot.row === 'pair');
   const stacked = HOME_SLOTS.filter((slot) => slot.row !== 'pair');
@@ -123,6 +152,21 @@ export function HomeScreen({ identity = null, onSignOut }: HomeScreenProps = {})
             <Slot key={slot.owner} slot={slot} />
           ))}
         </View>
+
+        {identity && onDeleteAccount ? (
+          // Last on the screen and quiet: leaving should be findable without
+          // being offered. Hidden entirely when signed out — there is no
+          // account to delete.
+          <Pressable
+            testID="home-delete-account"
+            accessibilityRole="button"
+            onPress={() => confirmDeletion(onDeleteAccount)}
+            hitSlop={spacing.sm}
+            style={styles.deleteAccount}
+          >
+            <Text style={styles.deleteAccountLabel}>Delete account</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </LinearGradient>
   );
@@ -155,6 +199,20 @@ const styles = StyleSheet.create({
     ...type.bodySmall,
     color: colors.fullDeep,
     marginBottom: spacing.xs,
+  },
+  deleteAccount: {
+    alignSelf: 'center',
+    paddingVertical: spacing.md,
+  },
+  deleteAccountLabel: {
+    ...type.bodySmall,
+    // Deliberately quiet, and in the same ink as the rest of the secondary
+    // text. The destructive weight belongs on the alert's confirm button, where
+    // the decision is actually made — a red link here would shout at a user who
+    // is only scrolling past it. No danger token exists yet; the ticket that
+    // needs one can add it.
+    color: colors.inkFaint,
+    textDecorationLine: 'underline',
   },
   card: {
     backgroundColor: colors.white,

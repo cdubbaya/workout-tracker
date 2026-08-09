@@ -71,10 +71,22 @@ export function useCore(client: SupabaseClient): CoreSession {
 
     for (const effect of effects) {
       if (!isQueuedWrite(effect)) {
-        // Local-only. `ClearLocalState` must not wait on a signal — signing
-        // out on a plane is still signing out.
+        if (effect.type === 'ClearLocalState') {
+          // The driver's half of signing out. `clear` keeps a pending
+          // `DeleteAccount` — and the queue serialises its own operations, so
+          // the deletion enqueued just above is already on disk by the time
+          // this runs rather than racing it.
+          //
+          // It never waits on a signal: signing out with no connection is
+          // still signing out, so nothing here touches the network.
+          void queue.clear().catch((error) => {
+            console.warn('could not clear local state', error);
+          });
+        }
         continue;
       }
+
+      const isDeletion = effect.type === 'DeleteAccount';
 
       // Durable before attempted. The write reaches disk first and the network
       // second, so a crash between the two costs a retry rather than a Session.
@@ -86,6 +98,18 @@ export function useCore(client: SupabaseClient): CoreSession {
         .then((writeIds) => {
           if (writeIds.length > 0) {
             dispatch({ type: 'SyncAcknowledged', at: Date.now(), writeIds });
+          }
+
+          // The Supabase session is dropped *after* the deletion lands, and
+          // only then. The write is sent with the user's own token — the
+          // function deletes whoever calls it — so signing out first would
+          // strip the credential the deletion needs and strand it in the queue
+          // with no session left to retry under.
+          //
+          // If it did not land, the token is deliberately kept: the retry loop
+          // is still holding the write, and it needs the session to deliver it.
+          if (isDeletion && writeIds.includes(effect.writeId)) {
+            void client.auth.signOut();
           }
         })
         .catch((error) => {

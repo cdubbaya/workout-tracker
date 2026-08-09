@@ -127,6 +127,22 @@ export async function runEffect(
       return;
     }
 
+    case 'DeleteAccount': {
+      // A `security definer` function rather than a `delete` composed here.
+      // What has to go is the `auth.users` row — that is what the foreign keys
+      // cascade from, and it is also what stops the account signing back in —
+      // and no client holding an anon key may touch `auth.users`. The function
+      // deletes whoever calls it, so it takes no argument: a user id parameter
+      // would be a parameter worth forging.
+      //
+      // `effect.userId` is therefore unused here, and still carried on the
+      // effect: it is what makes the write legible in the queue and in a test.
+      const { error } = await client.rpc('delete_account');
+      if (error) {
+        throw error;
+      }
+      return;
+    }
   }
 }
 
