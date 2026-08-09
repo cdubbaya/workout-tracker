@@ -13,11 +13,26 @@ import type { CoreEvent, Identity } from '../events';
 const ada: Identity = { userId: 'user-ada-1', email: 'ada@example.com' };
 const grace: Identity = { userId: 'user-grace-2', email: 'grace@example.com' };
 
-const signIn = (identity: Identity, at: number, today: string): CoreEvent => ({
+// The writes these events raise are keyed on a client-generated id. Defaulted
+// in both helpers because these tests are about onboarding rather than about
+// the queue — `sync.test.ts` is where the id itself is under test.
+const signIn = (
+  identity: Identity,
+  at: number,
+  today: string,
+  writeId = 'write-sign-in',
+): CoreEvent => ({
   type: 'SignedIn',
   at,
   identity,
   today,
+  writeId,
+});
+
+const acknowledge = (at: number, writeId = 'write-ack'): CoreEvent => ({
+  type: 'OnboardingAcknowledged',
+  at,
+  writeId,
 });
 
 describe('A new user', () => {
@@ -35,7 +50,7 @@ describe('OnboardingAcknowledged', () => {
   it('records when the user acknowledged, from the event rather than a clock', () => {
     const at = 1_700_000_500_000;
     const { state } = drive(aState({ identity: ada, onboardingKnown: true }), [
-      { type: 'OnboardingAcknowledged', at },
+      acknowledge(at),
     ]);
 
     // The event's own timestamp. A core that read `Date.now()` would fail this
@@ -46,13 +61,18 @@ describe('OnboardingAcknowledged', () => {
   it('emits an effect describing the profile write, rather than performing it', () => {
     const at = 1_700_000_500_000;
     const { effects } = drive(aState({ identity: ada, onboardingKnown: true }), [
-      { type: 'OnboardingAcknowledged', at },
+      acknowledge(at),
     ]);
 
     // Surviving app termination is a claim about the server, not about memory.
     // The core describes the write; the driver executes it.
     expect(effects).toEqual([
-      { type: 'PersistOnboardingAcknowledgement', userId: ada.userId, at },
+      {
+        type: 'PersistOnboardingAcknowledgement',
+        writeId: 'write-ack',
+        userId: ada.userId,
+        at,
+      },
     ]);
   });
 
@@ -61,11 +81,16 @@ describe('OnboardingAcknowledged', () => {
     // against a second identity so the test cannot pass on a hardcoded id.
     const at = 1_700_000_600_000;
     const { effects } = drive(aState({ identity: grace, onboardingKnown: true }), [
-      { type: 'OnboardingAcknowledged', at },
+      acknowledge(at),
     ]);
 
     expect(effects).toEqual([
-      { type: 'PersistOnboardingAcknowledgement', userId: grace.userId, at },
+      {
+        type: 'PersistOnboardingAcknowledgement',
+        writeId: 'write-ack',
+        userId: grace.userId,
+        at,
+      },
     ]);
   });
 });
@@ -203,7 +228,7 @@ describe('Which screen the user belongs on', () => {
     const events: CoreEvent[] = [
       signIn(ada, 1_700_000_000_000, '2026-08-07'),
       { type: 'OnboardingLoaded', at: 1_700_000_000_100, acknowledgedAt: null },
-      { type: 'OnboardingAcknowledged', at: 1_700_000_050_000 },
+      acknowledge(1_700_000_050_000),
     ];
 
     const screens = events.map((_, i) => {
@@ -223,7 +248,7 @@ describe('Acknowledgement without an identity', () => {
     const start = aState({ today: '2026-08-07' });
 
     const { state, effects } = drive(start, [
-      { type: 'OnboardingAcknowledged', at: 1_700_000_500_000 },
+      acknowledge(1_700_000_500_000),
     ]);
 
     // There is no row to write to. Recording it in memory would let the next

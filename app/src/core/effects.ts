@@ -9,7 +9,7 @@
  * compared with a deep equality check, it is not an effect.
  */
 
-import type { Identity, LocalDate, Timestamp, UserId } from './events';
+import type { Identity, LocalDate, Timestamp, UserId, WriteId } from './events';
 
 /**
  * Upsert the signed-in user's `profile` row. Idempotent and keyed on the user
@@ -17,6 +17,8 @@ import type { Identity, LocalDate, Timestamp, UserId } from './events';
  */
 export type PersistProfile = {
   type: 'PersistProfile';
+  /** The client-generated key this write keeps for every delivery attempt. */
+  writeId: WriteId;
   userId: UserId;
   email: string;
   /** The client's timestamp, which the server accepts (ADR-0010). */
@@ -44,6 +46,8 @@ export type ClearLocalState = {
  */
 export type PersistOnboardingAcknowledgement = {
   type: 'PersistOnboardingAcknowledgement';
+  /** The client-generated key this write keeps for every delivery attempt. */
+  writeId: WriteId;
   userId: UserId;
   /** The client's timestamp, which the server accepts (ADR-0010). */
   at: Timestamp;
@@ -54,6 +58,22 @@ export type Effect =
   | ClearLocalState
   | PersistOnboardingAcknowledgement;
 
+/**
+ * The effects that cross the network, and therefore the ones the durable queue
+ * carries. `ClearLocalState` never appears here — it touches only this device,
+ * so queuing it would mean a sign-out waiting on a signal.
+ *
+ * Defined by the presence of a `writeId` rather than by a hand-kept list, so an
+ * effect a later spec adds is queued or local by its own shape and cannot be
+ * forgotten here.
+ */
+export type QueuedWrite = Extract<Effect, { writeId: WriteId }>;
+
+/** Whether this effect is one the queue must deliver. */
+export function isQueuedWrite(effect: Effect): effect is QueuedWrite {
+  return 'writeId' in effect;
+}
+
 /** Convenience for drivers and tests narrowing a collected effect list. */
 export function isEffect<T extends Effect['type']>(
   effect: Effect,
@@ -62,4 +82,4 @@ export function isEffect<T extends Effect['type']>(
   return effect.type === type;
 }
 
-export type { Identity, LocalDate, Timestamp, UserId };
+export type { Identity, LocalDate, Timestamp, UserId, WriteId };

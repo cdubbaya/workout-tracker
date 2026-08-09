@@ -14,6 +14,10 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+// The app's own driver, so what is under test is the statement the app sends
+// rather than a restatement of it written for the test.
+import { runEffect } from '../../app/src/drivers/auth';
+
 // The CLI's fixed local values, identical on every machine and published in
 // Supabase's own docs. Not secrets, and deliberately not read from `.env` —
 // this suite must never point at a real project.
@@ -195,5 +199,91 @@ describe('profile row-level security', () => {
 
     const { data } = await anon.from('profile').select('id');
     expect(data ?? []).toEqual([]);
+  });
+});
+
+/**
+ * The half of the offline queue that only a real server can answer: whether it
+ * accepts the client's timestamp (ADR-0010), and whether replaying a write
+ * keyed on a client-generated id leaves one row rather than two.
+ *
+ * Driven through the real `runEffect` rather than through hand-written SQL. A
+ * test that issued its own statements would prove Postgres is idempotent and
+ * say nothing about the statements the app actually sends — which is where the
+ * duplicate would come from.
+ */
+describe('the write queue against a real server', () => {
+  itLocal('accepts the timestamp the client sent, unchanged', async () => {
+    // Deliberately in the past, and not close to now. A server that overwrote
+    // the client's clock with its own — the behaviour ADR-0010 declines —
+    // would land a value from today and fail this.
+    const happenedAt = Date.UTC(2026, 0, 15, 9, 30, 0);
+
+    await runEffect(ada.client, {
+      type: 'PersistOnboardingAcknowledgement',
+      writeId: 'write-acceptance-1',
+      userId: ada.id,
+      at: happenedAt,
+    });
+
+    const { data } = await ada.client
+      .from('profile')
+      .select('onboarding_acknowledged_at')
+      .eq('id', ada.id)
+      .single();
+
+    // Compared as an instant rather than as a string: Postgres renders
+    // `timestamptz` in its own format, and the claim is about the moment.
+    expect(new Date(data!.onboarding_acknowledged_at).getTime()).toBe(happenedAt);
+  });
+
+  itLocal('leaves one row when a write is redelivered', async () => {
+    // At-least-once delivery means the same write crosses the wire twice
+    // whenever an acknowledgement is dropped. This is the assertion that the
+    // second delivery costs nothing.
+    const write = {
+      type: 'PersistProfile' as const,
+      writeId: 'write-replay-1',
+      userId: grace.id,
+      email: grace.email,
+      at: Date.UTC(2026, 0, 15, 9, 30, 0),
+    };
+
+    await runEffect(grace.client, write);
+    await runEffect(grace.client, write);
+
+    const { data } = await grace.client.from('profile').select('id').eq('id', grace.id);
+
+    expect(data).toHaveLength(1);
+  });
+
+  itLocal('does not clear an acknowledgement when the profile write replays', async () => {
+    // The regression that would be invisible without a server: `PersistProfile`
+    // replays on every reconnect, and an upsert naming the acknowledgement
+    // column would wipe it and send a returning user back through onboarding.
+    const acknowledgedAt = Date.UTC(2026, 0, 20, 8, 0, 0);
+
+    await runEffect(grace.client, {
+      type: 'PersistOnboardingAcknowledgement',
+      writeId: 'write-ack-replay-1',
+      userId: grace.id,
+      at: acknowledgedAt,
+    });
+
+    await runEffect(grace.client, {
+      type: 'PersistProfile',
+      writeId: 'write-replay-2',
+      userId: grace.id,
+      email: grace.email,
+      at: Date.UTC(2026, 0, 21, 8, 0, 0),
+    });
+
+    const { data } = await grace.client
+      .from('profile')
+      .select('onboarding_acknowledged_at')
+      .eq('id', grace.id)
+      .single();
+
+    expect(new Date(data!.onboarding_acknowledged_at).getTime()).toBe(acknowledgedAt);
   });
 });

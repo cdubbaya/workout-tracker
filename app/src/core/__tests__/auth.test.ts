@@ -13,11 +13,20 @@ import type { CoreEvent, Identity } from '../events';
 const ada: Identity = { userId: 'user-ada-1', email: 'ada@example.com' };
 const grace: Identity = { userId: 'user-grace-2', email: 'grace@example.com' };
 
-const signIn = (identity: Identity, at: number, today: string): CoreEvent => ({
+const signIn = (
+  identity: Identity,
+  at: number,
+  today: string,
+  // The profile write a sign-in raises is keyed on a client-generated id.
+  // Defaulted here because these tests are about identity rather than about
+  // the queue — `sync.test.ts` is where the id itself is under test.
+  writeId = 'write-sign-in',
+): CoreEvent => ({
   type: 'SignedIn',
   at,
   identity,
   today,
+  writeId,
 });
 
 describe('SignedIn', () => {
@@ -36,7 +45,13 @@ describe('SignedIn', () => {
     // The core describes the write; the driver executes it. The effect carries
     // the event's own timestamp — ADR-0010's client-authoritative clock.
     expect(effects).toEqual([
-      { type: 'PersistProfile', userId: ada.userId, email: ada.email, at },
+      {
+        type: 'PersistProfile',
+        writeId: 'write-sign-in',
+        userId: ada.userId,
+        email: ada.email,
+        at,
+      },
     ]);
   });
 
