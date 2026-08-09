@@ -9,7 +9,13 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 
-import { eventForSession, identityOf, localDayOf, runEffect } from '../auth';
+import {
+  eventForSession,
+  identityOf,
+  localDayOf,
+  onboardingEventFor,
+  runEffect,
+} from '../auth';
 import { createClockDriver } from '../clock';
 import { readSupabaseConfig } from '../config';
 
@@ -200,6 +206,155 @@ describe('runEffect', () => {
         email: 'grace@example.com',
         at: 0,
       }),
+    ).rejects.toEqual(error);
+  });
+});
+
+describe('runEffect, for the onboarding acknowledgement', () => {
+  it('updates only the acknowledgement column, keyed on the user id', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: null });
+    const update = jest.fn().mockReturnValue({ eq });
+    const client = { from: jest.fn().mockReturnValue({ update }) };
+
+    await runEffect(client as never, {
+      type: 'PersistOnboardingAcknowledgement',
+      userId: 'user-42',
+      at: Date.UTC(2026, 7, 7, 10, 0, 0),
+    });
+
+    expect(client.from).toHaveBeenCalledWith('profile');
+
+    // An update rather than an upsert: the row already exists — `PersistProfile`
+    // created it at sign-in — and an upsert here would need the email to satisfy
+    // the not-null column, which this effect does not carry and should not.
+    expect(update).toHaveBeenCalledWith({
+      onboarding_acknowledged_at: '2026-08-07T10:00:00.000Z',
+      updated_at: '2026-08-07T10:00:00.000Z',
+    });
+    expect(eq).toHaveBeenCalledWith('id', 'user-42');
+  });
+
+  it('surfaces a write failure rather than swallowing it', async () => {
+    const error = { message: 'permission denied for table profile' };
+    const client = {
+      from: () => ({ update: () => ({ eq: jest.fn().mockResolvedValue({ error }) }) }),
+    };
+
+    await expect(
+      runEffect(client as never, {
+        type: 'PersistOnboardingAcknowledgement',
+        userId: 'user-42',
+        at: 0,
+      }),
+    ).rejects.toEqual(error);
+  });
+});
+
+describe('Signing in again, for a user who has acknowledged', () => {
+  it('does not name the acknowledgement column, so a re-sign-in cannot clear it', async () => {
+    // The silent regression this guards: `PersistProfile` upserts on every
+    // sign-in, and Supabase builds its `do update set` from the columns it was
+    // given. Adding `onboarding_acknowledged_at` to that payload — even as
+    // `undefined` — would reset a returning user's acknowledgement and put them
+    // back through onboarding. Verified against a local instance that the
+    // current payload leaves the column untouched.
+    const upsert = jest.fn().mockResolvedValue({ error: null });
+    const client = { from: jest.fn().mockReturnValue({ upsert }) };
+
+    await runEffect(client as never, {
+      type: 'PersistProfile',
+      userId: 'user-42',
+      email: 'grace@example.com',
+      at: 0,
+    });
+
+    expect(Object.keys(upsert.mock.calls[0][0])).not.toContain(
+      'onboarding_acknowledged_at',
+    );
+  });
+});
+
+describe('onboardingEventFor', () => {
+  /**
+   * Supabase hands back the column as the string PostgREST rendered, not a Date
+   * and not a number. A double that returned a timestamp would go green over a
+   * driver that never parses — which is the whole job of this function.
+   *
+   * The literal below is the exact form a local instance returns for a
+   * `timestamptz`, captured from the running container rather than assumed:
+   * `2026-08-07T10:00:00+00:00`, with a numeric offset and no `Z` and no
+   * milliseconds. Writing the friendlier `.000Z` form here would leave the
+   * driver's one real risk — that it cannot parse what Postgres actually
+   * renders — untested.
+   */
+  function clientReturning(
+    result: { data: { onboarding_acknowledged_at: string | null } | null; error: unknown },
+  ) {
+    const maybeSingle = jest.fn().mockResolvedValue(result);
+    const eq = jest.fn().mockReturnValue({ maybeSingle });
+    const select = jest.fn().mockReturnValue({ eq });
+    return { client: { from: jest.fn().mockReturnValue({ select }) }, select, eq };
+  }
+
+  it('reports the acknowledgement the profile holds, parsed to a timestamp', async () => {
+    const { client, select, eq } = clientReturning({
+      data: { onboarding_acknowledged_at: '2026-08-07T10:00:00+00:00' },
+      error: null,
+    });
+
+    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+
+    expect(select).toHaveBeenCalledWith('onboarding_acknowledged_at');
+    expect(eq).toHaveBeenCalledWith('id', 'user-42');
+
+    // Derived from the stated instant rather than pinned to a literal the
+    // implementation happened to produce.
+    expect(event).toEqual({
+      type: 'OnboardingLoaded',
+      at: 1_775_000_000_000,
+      acknowledgedAt: Date.UTC(2026, 7, 7, 10, 0, 0),
+    });
+  });
+
+  it('reports null for a profile that has not acknowledged', async () => {
+    const { client } = clientReturning({
+      data: { onboarding_acknowledged_at: null },
+      error: null,
+    });
+
+    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+
+    expect(event).toEqual({
+      type: 'OnboardingLoaded',
+      at: 1_775_000_000_000,
+      acknowledgedAt: null,
+    });
+  });
+
+  it('reports null when no row exists yet', async () => {
+    // `PersistProfile` is fire-and-forget, so the first cold start after a
+    // sign-up can read before the row lands. A new user seeing onboarding is
+    // the right answer here; throwing would leave them on a blank screen.
+    const { client } = clientReturning({ data: null, error: null });
+
+    const event = await onboardingEventFor(client as never, 'user-42', 1_775_000_000_000);
+
+    expect(event).toEqual({
+      type: 'OnboardingLoaded',
+      at: 1_775_000_000_000,
+      acknowledgedAt: null,
+    });
+  });
+
+  it('surfaces a read failure rather than reporting a user as new', async () => {
+    // The dangerous default. A failed read that returned `acknowledgedAt: null`
+    // would show the disclaimer again to someone who accepted it, and — worse —
+    // would let the app write over their original acknowledgement.
+    const error = { message: 'permission denied for table profile' };
+    const { client } = clientReturning({ data: null, error });
+
+    await expect(
+      onboardingEventFor(client as never, 'user-42', 1_775_000_000_000),
     ).rejects.toEqual(error);
   });
 });

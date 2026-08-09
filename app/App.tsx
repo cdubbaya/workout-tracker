@@ -6,8 +6,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { HomeScreen } from './src/screens/HomeScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { createSupabaseClient } from './src/drivers/client';
+import { screenFor } from './src/core/state';
 import { useCore } from './src/session/useCore';
 import { appFonts } from './src/theme/fonts';
 
@@ -47,31 +49,55 @@ export default function App() {
 const client = createSupabaseClient();
 
 /**
- * Chooses the screen from core state.
+ * Renders the screen core state puts the user on.
  *
- * A returning user goes straight to Home — `useCore` restores the persisted
- * session before reporting ready, so the app never flashes sign-in at someone
- * who is already signed in.
+ * The choice itself is `screenFor` in the core, tested without a renderer. This
+ * function only maps its answer to a component — so a returning user going
+ * straight to Home, rather than through onboarding, is a rule with a test rather
+ * than a condition in a component.
+ *
+ * A returning user never flashes sign-in either: `useCore` restores the
+ * persisted session before reporting ready.
  */
 function Root() {
-  const { state, ready } = useCore(client);
+  const { state, ready, dispatch } = useCore(client);
 
   if (!ready) {
     return null;
   }
 
-  if (!state.identity) {
-    return <SignInScreen client={client} />;
-  }
+  switch (screenFor(state)) {
+    case 'sign-in':
+      return <SignInScreen client={client} />;
 
-  return (
-    <HomeScreen
-      identity={state.identity}
-      onSignOut={() => {
-        // Supabase's auth listener raises `SignedOut` through the core, so the
-        // screen does not have to dispatch it and cannot get it wrong.
-        void client.auth.signOut();
-      }}
-    />
-  );
+    case 'loading':
+      // Signed in, profile has not answered yet. Blank rather than onboarding:
+      // the disclaimer shown to someone who already accepted it is the failure
+      // worth a frame of nothing.
+      return null;
+
+    case 'onboarding':
+      return (
+        <OnboardingScreen
+          onAcknowledge={() => {
+            // The screen reports the intent; the core records it and emits the
+            // write. Timestamped here because this is the driver layer — the
+            // core never reads a clock.
+            dispatch({ type: 'OnboardingAcknowledged', at: Date.now() });
+          }}
+        />
+      );
+
+    case 'home':
+      return (
+        <HomeScreen
+          identity={state.identity}
+          onSignOut={() => {
+            // Supabase's auth listener raises `SignedOut` through the core, so
+            // the screen does not have to dispatch it and cannot get it wrong.
+            void client.auth.signOut();
+          }}
+        />
+      );
+  }
 }

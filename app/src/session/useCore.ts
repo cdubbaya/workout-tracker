@@ -12,7 +12,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { reduce } from '../core/reduce';
 import { initialState, type CoreState } from '../core/state';
 import type { CoreEvent } from '../core/events';
-import { eventForSession, runEffect } from '../drivers/auth';
+import { eventForSession, onboardingEventFor, runEffect } from '../drivers/auth';
 import { createClockDriver } from '../drivers/clock';
 
 export type CoreSession = {
@@ -83,6 +83,44 @@ export function useCore(client: SupabaseClient): CoreSession {
       subscription.subscription.unsubscribe();
     };
   }, [client, dispatch]);
+
+  /**
+   * What the profile says about onboarding, fetched once per signed-in user.
+   *
+   * Keyed on the user id rather than on the identity object, so a token refresh
+   * handing back an equal-but-new identity does not re-read the row. Runs only
+   * while the answer is unknown: acknowledging sets it, and re-reading after
+   * that would be a round trip to learn what the core already knows.
+   *
+   * A failed read leaves `onboardingKnown` false, which holds the user on the
+   * loading screen rather than showing the disclaimer to someone who has
+   * already accepted it. The retry arrives with the offline queue, alongside the
+   * one for `runEffect`.
+   */
+  const userId = state.identity?.userId ?? null;
+  const known = state.onboardingKnown;
+
+  useEffect(() => {
+    if (!userId || known) {
+      return;
+    }
+
+    let active = true;
+
+    void onboardingEventFor(client, userId, Date.now())
+      .then((event) => {
+        if (active) {
+          dispatch(event);
+        }
+      })
+      .catch((error) => {
+        console.warn('could not read onboarding acknowledgement', error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, dispatch, userId, known]);
 
   // The clock driver reads `today` through a ref so that starting the interval
   // does not depend on the value it watches — otherwise every day change would

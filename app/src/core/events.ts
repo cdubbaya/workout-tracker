@@ -52,4 +52,35 @@ export type DayRolled = {
   today: LocalDate;
 };
 
-export type CoreEvent = SignedIn | SignedOut | DayRolled;
+/**
+ * The user acknowledged the medical disclaimer.
+ *
+ * The disclaimer is load-bearing rather than ceremonial (ADR-0007): the program
+ * schedules no rest, so this is where the user is told the recovery decision is
+ * theirs. `at` is the acknowledgement's audit trail, which is why the event
+ * carries a timestamp and not merely a flag.
+ */
+export type OnboardingAcknowledged = {
+  type: 'OnboardingAcknowledged';
+  at: Timestamp;
+};
+
+/**
+ * What the profile says about onboarding, reported on cold start.
+ *
+ * Raised by the profile driver rather than inferred from the session, because
+ * "has this user acknowledged" is a fact the server holds and the client cannot
+ * derive. `acknowledgedAt` is `null` for a user who genuinely has not.
+ */
+export type OnboardingLoaded = {
+  type: 'OnboardingLoaded';
+  at: Timestamp;
+  acknowledgedAt: Timestamp | null;
+};
+
+export type CoreEvent =
+  | SignedIn
+  | SignedOut
+  | DayRolled
+  | OnboardingAcknowledged
+  | OnboardingLoaded;

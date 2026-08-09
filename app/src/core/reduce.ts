@@ -44,14 +44,60 @@ export function reduce(state: CoreState, event: CoreEvent): Outcome {
     case 'SignedOut':
       // `today` survives sign-out: the calendar did not change because a user
       // signed out, and the next sign-in carries its own day anyway.
+      //
+      // The acknowledgement does not. It is a property of a user rather than of
+      // a phone, so handing the device over must not skip the disclaimer for
+      // whoever signs in next. Cleared back to *unknown* rather than to
+      // not-acknowledged, so the next user's profile is what answers.
       return {
-        state: { ...state, identity: null },
+        state: {
+          ...state,
+          identity: null,
+          onboardingAcknowledgedAt: null,
+          onboardingKnown: false,
+        },
         effects: [{ type: 'ClearLocalState' }],
       };
 
     case 'DayRolled':
       return {
         state: { ...state, today: event.today },
+        effects: NO_EFFECTS,
+      };
+
+    case 'OnboardingAcknowledged': {
+      // Nobody to acknowledge for. Onboarding sits behind sign-in, so this is
+      // unreachable through the UI — ignored rather than thrown, because a
+      // reducer that crashed on an ordering it cannot rule out would take the
+      // screen down for a rule it only needed to decline.
+      if (!state.identity) {
+        return { state, effects: NO_EFFECTS };
+      }
+
+      return {
+        // Known too: the user just answered, so nothing needs to ask the
+        // profile before showing them Home.
+        state: { ...state, onboardingAcknowledgedAt: event.at, onboardingKnown: true },
+        effects: [
+          {
+            type: 'PersistOnboardingAcknowledgement',
+            userId: state.identity.userId,
+            at: event.at,
+          },
+        ],
+      };
+    }
+
+    case 'OnboardingLoaded':
+      // What the profile said, adopted verbatim — including `null`, which is a
+      // real answer meaning "this user has not acknowledged" and is what sends
+      // a new user into onboarding.
+      return {
+        state: {
+          ...state,
+          onboardingAcknowledgedAt: event.acknowledgedAt,
+          onboardingKnown: true,
+        },
         effects: NO_EFFECTS,
       };
 
