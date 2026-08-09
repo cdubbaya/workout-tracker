@@ -101,6 +101,21 @@ function Root() {
             // the screen does not have to dispatch it and cannot get it wrong.
             void client.auth.signOut();
           }}
+          onDeleteAccount={() => {
+            // Dispatched, with no `signOut` beside it — the opposite of the
+            // handler above. The deletion is sent with the user's own token,
+            // and `delete_account` deletes whoever calls it, so the session has
+            // to outlive the request. `useCore` drops it once the write lands,
+            // which is the one moment that is safe.
+            //
+            // Timestamped and keyed here because this is the driver layer: the
+            // core reads neither a clock nor a randomness source.
+            dispatch({
+              type: 'AccountDeletionRequested',
+              at: Date.now(),
+              writeId: nextWriteId(),
+            });
+          }}
         />
       );
   }

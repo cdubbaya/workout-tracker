@@ -54,6 +54,26 @@ export type SignedOut = {
 };
 
 /**
+ * The user asked to delete their account and everything in it.
+ *
+ * Carries a `writeId` where `SignedOut` carries none, and that is the whole
+ * difference between the two. Signing out is done the moment it happens —
+ * nothing crosses the network, so nothing can fail. A deletion is a *request*
+ * until the server confirms it, so it rides the durable queue like any other
+ * write; a user who deletes their account with no signal must not stay in the
+ * database because the tap happened to land on a plane.
+ *
+ * The confirmation the user is shown belongs to the screen. By the time this
+ * event reaches the core the decision is already made.
+ */
+export type AccountDeletionRequested = {
+  type: 'AccountDeletionRequested';
+  at: Timestamp;
+  /** Keys the deletion write this raises. */
+  writeId: WriteId;
+};
+
+/**
  * A day boundary crossed. Raised by the clock driver rather than derived from a
  * timestamp inside the core, so that "what day is it" has exactly one answer
  * and one place it can be wrong.
@@ -141,6 +161,7 @@ export type RemoteSnapshot = {
 export type CoreEvent =
   | SignedIn
   | SignedOut
+  | AccountDeletionRequested
   | DayRolled
   | OnboardingAcknowledged
   | OnboardingLoaded

@@ -65,6 +65,43 @@ export function reduce(state: CoreState, event: CoreEvent): Outcome {
         effects: [{ type: 'ClearLocalState' }],
       };
 
+    case 'AccountDeletionRequested': {
+      // Nobody to delete. Deletion sits behind Home, so this is unreachable
+      // through the UI — ignored rather than thrown, for the same reason
+      // `OnboardingAcknowledged` declines rather than crashing.
+      if (!state.identity) {
+        return { state, effects: NO_EFFECTS };
+      }
+
+      // Signed out locally the moment it is asked for, exactly as `SignedOut`
+      // does: leaving should not leave the user staring at an account they have
+      // already decided to destroy while a request is in flight.
+      //
+      // The write stays owed regardless. That is the difference from a
+      // sign-out — the account is gone from this phone immediately and gone
+      // from the server when the queue drains, and the second half is what
+      // makes deleting on a plane still a deletion.
+      return {
+        state: {
+          ...state,
+          identity: null,
+          onboardingAcknowledgedAt: null,
+          onboardingKnown: false,
+          pendingWriteIds: [...state.pendingWriteIds, event.writeId],
+        },
+        effects: [
+          {
+            type: 'DeleteAccount',
+            writeId: event.writeId,
+            userId: state.identity.userId,
+            at: event.at,
+          },
+          // Both halves, in this order: the server's copy and this device's.
+          { type: 'ClearLocalState' },
+        ],
+      };
+    }
+
     case 'DayRolled':
       return {
         state: { ...state, today: event.today },

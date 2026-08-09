@@ -59,6 +59,19 @@ export type WriteQueue = {
    * redelivered acknowledgement is not an error.
    */
   acknowledge: (writeIds: readonly WriteId[]) => Promise<void>;
+  /**
+   * Drop what this device holds for a user who has left — the driver's half of
+   * `ClearLocalState`. Handing the phone to someone else must not leave the
+   * previous user's writes on it.
+   *
+   * Keeps a pending `DeleteAccount`, and only that. Deleting an account raises
+   * the deletion *and* a clear, so a clear that took everything would erase the
+   * request before it was ever delivered, and a user who left with no signal
+   * would stay in the database with nothing on the phone left to retry it. It
+   * is the one write whose purpose is to outlive the session that made it —
+   * every other write is about a user who is still here.
+   */
+  clear: () => Promise<void>;
 };
 
 /**
@@ -141,6 +154,23 @@ export function createWriteQueue(storage: WriteStorage): WriteQueue {
         }
 
         await write(storage, remaining);
+      });
+    },
+
+    clear(): Promise<void> {
+      return serialize(async () => {
+        const writes = await read(storage);
+
+        // A deletion survives its own clear. Identified by type rather than by
+        // a flag on the effect: what makes it survive is what it *is*, and a
+        // flag would be a second thing to keep in step.
+        const surviving = writes.filter((entry) => entry.type === 'DeleteAccount');
+
+        if (surviving.length === writes.length) {
+          return;
+        }
+
+        await write(storage, surviving);
       });
     },
   };

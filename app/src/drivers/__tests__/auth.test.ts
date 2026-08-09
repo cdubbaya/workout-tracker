@@ -265,6 +265,45 @@ describe('runEffect, for the onboarding acknowledgement', () => {
   });
 });
 
+describe('runEffect, for an account deletion', () => {
+  it('calls the deletion function rather than deleting rows one table at a time', async () => {
+    // A `security definer` function rather than a `delete` the client composes:
+    // removing the `auth.users` row is what makes the cascade take everything,
+    // and no anon-key client may touch `auth.users` directly. A driver that
+    // deleted from `profile` instead would leave the account able to sign in.
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: null });
+    const client = { rpc };
+
+    await runEffect(client as never, {
+      type: 'DeleteAccount',
+      writeId: 'write-1',
+      userId: 'user-42',
+      at: Date.UTC(2026, 7, 9, 10, 0, 0),
+    });
+
+    // No argument: the function deletes whoever is calling it. Passing a user
+    // id would be a parameter worth forging.
+    expect(rpc).toHaveBeenCalledWith('delete_account');
+  });
+
+  it('surfaces a failure rather than swallowing it', async () => {
+    // The one that matters most here. A deletion reported as done and never
+    // performed leaves the user's rows in the database while the app tells them
+    // they are gone — and the queue drops the write, so nothing retries.
+    const error = { message: 'permission denied for function delete_account' };
+    const client = { rpc: jest.fn().mockResolvedValue({ data: null, error }) };
+
+    await expect(
+      runEffect(client as never, {
+        type: 'DeleteAccount',
+        writeId: 'write-1',
+        userId: 'user-42',
+        at: 0,
+      }),
+    ).rejects.toEqual(error);
+  });
+});
+
 describe('Signing in again, for a user who has acknowledged', () => {
   it('does not name the acknowledgement column, so a re-sign-in cannot clear it', async () => {
     // The silent regression this guards: `PersistProfile` upserts on every

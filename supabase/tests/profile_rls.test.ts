@@ -203,6 +203,162 @@ describe('profile row-level security', () => {
 });
 
 /**
+ * Deleting an account, against a real database.
+ *
+ * The criterion this suite exists for is that the cascade is *verified* rather
+ * than assumed — so these run against Postgres with the real foreign keys, and
+ * there is no version of them that a mock could answer. A unit test can prove
+ * the driver calls the function; only this can prove the rows are gone.
+ *
+ * Each test makes its own user and deletes it, rather than using the shared
+ * `ada` and `grace`: a test whose whole point is destroying an account cannot
+ * share one with the tests that follow it.
+ */
+describe('deleting an account', () => {
+  /** A throwaway user with a seeded profile row, for a test that destroys them. */
+  async function aDoomedUser(label: string): Promise<TestUser> {
+    const user = await createUser(`${label}+${suffix}@rls.test`, `test-password-${label}`);
+    const { error } = await user.client
+      .from('profile')
+      .insert({ id: user.id, email: user.email });
+    if (error) {
+      throw error;
+    }
+    return user;
+  }
+
+  itLocal('removes the profile row rather than flagging it', async () => {
+    const doomed = await aDoomedUser('doomed-profile');
+
+    await runEffect(doomed.client, {
+      type: 'DeleteAccount',
+      writeId: 'write-delete-1',
+      userId: doomed.id,
+      at: Date.UTC(2026, 7, 9, 12, 0, 0),
+    });
+
+    // Read as the admin, not as the deleted user. Reading as the user proves
+    // nothing: RLS filters their rows to an empty set the moment their JWT
+    // stops matching, so a flagged-but-present row would look identical to a
+    // deleted one. This is the assertion the criterion actually asks for.
+    const { data, error } = await admin.from('profile').select('id').eq('id', doomed.id);
+
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
+
+  itLocal('removes the auth user, so the account cannot sign back in', async () => {
+    const doomed = await aDoomedUser('doomed-auth');
+
+    await runEffect(doomed.client, {
+      type: 'DeleteAccount',
+      writeId: 'write-delete-2',
+      userId: doomed.id,
+      at: Date.UTC(2026, 7, 9, 12, 0, 0),
+    });
+
+    // Deleting only the profile would leave an account that still signs in, to
+    // an app holding nothing for it.
+    const { data, error } = await admin.auth.admin.getUserById(doomed.id);
+
+    expect(data?.user ?? null).toBeNull();
+    expect(error).not.toBeNull();
+  });
+
+  itLocal('deletes by cascade rather than by naming each table', async () => {
+    // The criterion's real target, and the reason it says *verified* rather
+    // than assumed: `delete_account` removes exactly one row, and everything
+    // else goes because the schema says it must. That is what makes a table a
+    // later spec adds — declared with the same `references ... on delete
+    // cascade` — covered without this function being edited to name it.
+    //
+    // Asserted on the constraint itself, because the alternative is a test that
+    // has to invent a table to prove a rule about tables that do not exist yet.
+    // `profile` is the live instance of that rule: the test above shows its row
+    // disappearing, and this shows *why* it disappeared.
+    const { data, error } = await admin
+      .from('account_cascade_constraint')
+      .select('constraint_name,delete_action')
+      .eq('constraint_name', 'profile_id_fkey');
+
+    expect(error).toBeNull();
+
+    // `c` is Postgres's code for `on delete cascade`. A constraint set to
+    // `no action` or `set null` would leave orphaned rows behind a deleted
+    // account, which is the failure the criterion is aimed at.
+    expect(data).toEqual([{ constraint_name: 'profile_id_fkey', delete_action: 'c' }]);
+  });
+
+  itLocal('leaves no table that would survive its owner being deleted', async () => {
+    // The guard for the specs that have not been written yet. Every foreign key
+    // in `public` must cascade, so a table added later is swept up by the same
+    // deletion rather than quietly outliving the account it belonged to.
+    //
+    // This is the test that fails when someone adds a `sessions` table with a
+    // default `no action` key — which is precisely how "deleted" accounts keep
+    // their rows, and precisely what this issue says must not be assumed.
+    const { data, error } = await admin
+      .from('account_cascade_constraint')
+      .select('constraint_name,delete_action');
+
+    expect(error).toBeNull();
+
+    const notCascading = (data ?? []).filter((row) => row.delete_action !== 'c');
+    expect(notCascading).toEqual([]);
+  });
+
+  itLocal('deletes the caller and nobody else', async () => {
+    // The function takes no argument, so there is nothing to forge — but the
+    // claim worth a test is that a caller cannot reach past themselves. `ada`
+    // is a bystander here and must survive.
+    const doomed = await aDoomedUser('doomed-bystander');
+
+    await runEffect(doomed.client, {
+      type: 'DeleteAccount',
+      writeId: 'write-delete-4',
+      userId: doomed.id,
+      at: Date.UTC(2026, 7, 9, 12, 0, 0),
+    });
+
+    const { data } = await admin.from('profile').select('id').eq('id', ada.id);
+    expect(data).toEqual([{ id: ada.id }]);
+  });
+
+  itLocal('costs nothing when the same deletion is redelivered', async () => {
+    // At-least-once delivery (ADR-0010) means a dropped acknowledgement sends
+    // this twice. The second call runs against an account that is already gone.
+    const doomed = await aDoomedUser('doomed-replay');
+
+    const write = {
+      type: 'DeleteAccount' as const,
+      writeId: 'write-delete-5',
+      userId: doomed.id,
+      at: Date.UTC(2026, 7, 9, 12, 0, 0),
+    };
+
+    await runEffect(doomed.client, write);
+
+    // The second delivery goes out on the same client, whose JWT now names a
+    // user that no longer exists — which is exactly the state a real retry
+    // would be in. It must not throw: a rejection would leave the write in the
+    // queue forever, retrying a deletion that already happened.
+    await expect(runEffect(doomed.client, write)).resolves.toBeUndefined();
+  });
+
+  itLocal('refuses an unauthenticated caller', async () => {
+    const anon = createClient(LOCAL_URL, LOCAL_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { error } = await anon.rpc('delete_account');
+
+    // Either the grant refuses it or the function's own null check does. Both
+    // are the right answer; what must not happen is a silent success.
+    expect(error).not.toBeNull();
+  });
+});
+
+/**
  * The half of the offline queue that only a real server can answer: whether it
  * accepts the client's timestamp (ADR-0010), and whether replaying a write
  * keyed on a client-generated id leaves one row rather than two.

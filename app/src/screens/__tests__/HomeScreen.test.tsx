@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native';
+import { Alert, type AlertButton } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { HOME_SLOTS, HomeScreen } from '../HomeScreen';
@@ -151,5 +152,104 @@ describe('Identity', () => {
     // Handing the phone to someone else is a user story in spec #1; the screen
     // reports the intent and the core decides what it clears.
     expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Deleting an account, from the screen's side.
+ *
+ * The confirmation is `Alert.alert`, so it is spied on rather than queried: it
+ * renders in the platform's own layer and never appears in the React tree. The
+ * spy is shaped from the real signature — `(title, message, buttons)` — because
+ * the assertions below read the buttons it was handed.
+ */
+describe('Deleting an account', () => {
+  const ada = { userId: 'user-ada-1', email: 'ada@example.com' };
+
+  async function renderHomeWith(props: Parameters<typeof HomeScreen>[0]) {
+    return render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 59, left: 0, right: 0, bottom: 34 },
+        }}
+      >
+        <HomeScreen {...props} />
+      </SafeAreaProvider>,
+    );
+  }
+
+  let alert: jest.SpyInstance;
+
+  beforeEach(() => {
+    alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    alert.mockRestore();
+  });
+
+  /** The buttons the alert was handed, whatever order they were given in. */
+  function buttonsShown(): AlertButton[] {
+    return (alert.mock.calls[0]?.[2] ?? []) as AlertButton[];
+  }
+
+  it('does not delete on the first tap — it asks first', async () => {
+    const onDeleteAccount = jest.fn();
+    const { getByTestId } = await renderHomeWith({ identity: ada, onDeleteAccount });
+
+    fireEvent.press(getByTestId('home-delete-account'));
+
+    // The criterion: deletion is confirmed *before* it happens. A screen that
+    // deleted on the tap and showed a message afterwards fails here.
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(onDeleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('says the deletion cannot be undone', async () => {
+    const { getByTestId } = await renderHomeWith({
+      identity: ada,
+      onDeleteAccount: jest.fn(),
+    });
+
+    fireEvent.press(getByTestId('home-delete-account'));
+
+    // Asserted against the alert's own text rather than a fixed string, so
+    // rewording the warning is fine and dropping it is not.
+    const [title, message] = alert.mock.calls[0];
+    expect(`${title} ${message}`).toMatch(/cannot be undone/i);
+  });
+
+  it('deletes only once the destructive choice is taken', async () => {
+    const onDeleteAccount = jest.fn();
+    const { getByTestId } = await renderHomeWith({ identity: ada, onDeleteAccount });
+
+    fireEvent.press(getByTestId('home-delete-account'));
+    buttonsShown().find((button) => button.style === 'destructive')?.onPress?.();
+
+    expect(onDeleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a way out that deletes nothing', async () => {
+    const onDeleteAccount = jest.fn();
+    const { getByTestId } = await renderHomeWith({ identity: ada, onDeleteAccount });
+
+    fireEvent.press(getByTestId('home-delete-account'));
+
+    const cancel = buttonsShown().find((button) => button.style === 'cancel');
+
+    // A confirmation with no way out is not a confirmation.
+    expect(cancel).toBeDefined();
+    cancel?.onPress?.();
+    expect(onDeleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('is not offered when nobody is signed in', async () => {
+    const { queryByTestId } = await renderHomeWith({
+      identity: null,
+      onDeleteAccount: jest.fn(),
+    });
+
+    expect(queryByTestId('home-delete-account')).toBeNull();
   });
 });
