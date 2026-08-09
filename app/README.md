@@ -48,16 +48,26 @@ Choose your connected iPhone when prompted. The first build needs a signing team
 → Team**. A free Apple ID works, with the caveat that the provisioning profile expires after
 seven days.
 
-### Without a cable
+### Without a cable, via EAS
 
-`expo run:ios --device` needs the phone attached. To install over the air instead, build on
-EAS and scan the QR code it returns:
+`expo run:ios --device` needs the phone attached and a local Xcode toolchain. Building on
+EAS needs neither, and is the documented path for putting an implemented issue on a phone:
 
 ```bash
-npm install -g eas-cli
-eas login
-eas build --profile development --platform ios
+npm run bootstrap     # npm ci, then pull the env vars from EAS
+npm run build:dev     # queue the build; returns a QR code to install
+npm run start:dev     # Metro, for the installed build
 ```
+
+**Full runbook, including the one-time setup:
+[../docs/agents/eas-testing.md](../docs/agents/eas-testing.md).** It covers storing the
+Supabase values on EAS so no `.env` is copied between worktrees, registering a device, and
+— the part that saves the most time — which changes need a new build and which only need a
+reload.
+
+`eas-cli` is a devDependency, so use `npx eas …` or the `npm run` scripts above rather than
+a bare `eas`. Do not install it globally; a global copy drifts from the version `eas.json`
+pins.
 
 EAS registers the device through a browser flow, so no cable is involved at any point. It
 does need a paid Apple Developer account — device registration goes through the Developer
